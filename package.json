@@ -1,0 +1,26 @@
+{
+	"name": "apis",
+	"version": "0.0.1",
+	"description": "Library for creation web and websocket restful APIs",
+	"keywords": ["api", "rest", "web", "websocket"],
+	"author": {
+		"name": "Dmitry Smolin",
+		"email": "dimsmol@gmail.com"
+	},
+	"preferGlobal": false,
+	"private": false,
+	"engines": {
+		"node": "~0.6.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/dimsmol/apis"
+	},
+	"directories": {
+		"lib": "./lib",
+		"bin": "./bin",
+		"doc": "./doc",
+		"example": "./example"
+	},
+	"main": "./lib/index"
+}
