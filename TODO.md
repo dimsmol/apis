@@ -1,9 +1,9 @@
 * errors handling
 * top-level errors handling
 
-* support subcontracts
 * review TODOs
 
+* multirequests
 * ctx restore or cloning for multirequests
 
 
