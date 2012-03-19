@@ -1,3 +1,6 @@
+* bug: sends track events back to their source
+* replace send() with something sending exactly JSON (end()?)
+
 * multirequests
 * ctx restore or cloning for multirequests
 
