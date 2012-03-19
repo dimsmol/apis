@@ -1,3 +1,5 @@
+* fix statistics collection
+
 * replace send() with something sending exactly JSON (end()?)
 
 * multirequests
