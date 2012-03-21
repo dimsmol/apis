@@ -1,4 +1,8 @@
-* fix statistics collection
+* add number of connections without endpoint
+* add number of endpoints with more than one connection
+	* possibly details on such endpoints: which transport is used, how many connections they have
+
+* fix statistics collection (remove unnecessary, make freq counting optional or whatever)
 
 * replace send() with something sending exactly JSON (end()?)
 
