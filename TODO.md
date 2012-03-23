@@ -1,6 +1,9 @@
 * move all statistics collection out from library - use client code
-
 * replace send() with something sending exactly JSON (end()?)
+
+* way to send custom header along with message, for both send() and sendResult()
+* way to specify header to send for result handler
+* get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 * multirequests
 * ctx restore or cloning for multirequests
