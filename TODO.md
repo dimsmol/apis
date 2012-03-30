@@ -1,12 +1,9 @@
 * replace send() with something sending exactly JSON (end()?)
 
-* make statistics unit
-	* redesign Freq (prevTime and always-growing num), introduce stat lib (nstat)
-	* introduce MultiFreq to reduce count of timers
+* stat
 	* add number of connections without endpoint
 	* add number of endpoints with more than one connection
 		* possibly details on such endpoints: which transport is used, how many connections they have
-	* add messages sending freq
 	* add trembling users detection (frequently performing connect then disconnect)
 
 * think about sub-apps
