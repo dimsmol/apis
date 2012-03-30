@@ -1,12 +1,24 @@
-* move all statistics collection out from library - use client code
 * replace send() with something sending exactly JSON (end()?)
 
+* make statistics unit
+	* redesign Freq (prevTime and always-growing num), introduce stat lib (nstat)
+	* introduce MultiFreq to reduce count of timers
+	* add number of connections without endpoint
+	* add number of endpoints with more than one connection
+		* possibly details on such endpoints: which transport is used, how many connections they have
+	* add messages sending freq
+	* add trembling users detection (frequently performing connect then disconnect)
+
 * think about sub-apps
+	* app as Unit
+	* static must become part of contract
+	* ctx transition on descending to sub-app
 
-* move errh to client or standalone library (ncbt)
-* move logging to standalone lib, leaving wrapper here
+* move things to ctx.core (?)
 
-* way to send custom header along with message, for both send() and sendResult()
+* move logging to standalone lib, leave wrapper here
+
+* way to send custom header along with message, both for send() and sendResult()
 * way to specify header to send for result handler
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
 
