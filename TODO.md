@@ -1,7 +1,3 @@
-* replace send() with something sending exactly JSON (end()?)
-
-* add trembling users detection (frequently performing connect then disconnect) (?)
-
 * think about sub-apps
 	* app as Unit
 	* static must become part of contract
@@ -20,3 +16,5 @@
 
 * implement dataspecs
 * implement url parsing
+
+* add trembling users detection (frequently performing connect then disconnect) (?)
