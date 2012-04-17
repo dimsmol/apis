@@ -11,6 +11,7 @@
 * move things to ctx.core (?)
 
 * move logging to standalone lib, leave wrapper here
+	* introduce handlers
 
 * way to send custom header along with message, both for send() and sendResult()
 * way to specify header to send for result handler
