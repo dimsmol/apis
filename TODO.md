@@ -1,3 +1,8 @@
+* implement dataspecs
+* implement url parsing
+
+* add some kind of lifetime distribution to stats
+
 * think about sub-apps
 	* app as Unit
 	* static must become part of contract
@@ -13,8 +18,5 @@
 
 * multirequests
 * ctx restore or cloning for multirequests
-
-* implement dataspecs
-* implement url parsing
 
 * add trembling users detection (frequently performing connect then disconnect) (?)
