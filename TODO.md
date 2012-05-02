@@ -1,4 +1,7 @@
-* implement dataspecs
+* check incoming header, not only body
+* make ret() use dataspec and allow common errors
+* add logging of warnings for data() & ret()
+
 * implement url parsing
 
 * add some kind of lifetime distribution to stats
