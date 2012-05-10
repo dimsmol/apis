@@ -1,5 +1,3 @@
-* validation for clientInfo
-
 ## ctx
 
 * move things to ctx.core (?)
