@@ -65,7 +65,7 @@ var unwrap = function(possibleHinted) {
 	req: [auth],
 		read:   {_returns: User.except('password')},
 		update: User.except('email', 'password'),
-		del:    {},
+		del:	{},
 			props: [User.username, User.name],
 
 	code: require('./api/user').User
