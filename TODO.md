@@ -7,8 +7,14 @@
 * move logging to standalone lib, leave wrapper here
 	* introduce handlers
 
+## handlers
+
+* shorten names (as in valid)
+
 ## modularity
 
+* body parsing on demand
+* cookie parsing on demand
 * think about sub-apps
 	* app as Unit
 	* static must become part of contract
