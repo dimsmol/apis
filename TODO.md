@@ -1,3 +1,13 @@
+## REST
+
+* stateless all the way
+* GET must be cacheable !!!
+	* think about url & args, how to provide cacheable structure
+* PUT vs POST
+	* PUT is safe to repeat (example: update something)
+	* POST is not safe to repeat - can create copies (example: create)
+* DELETE is safe to repeat (just ensures that it's deleted)
+
 ## ctx
 
 * move things to ctx.core (?)
