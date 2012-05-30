@@ -17,10 +17,6 @@
 * move logging to standalone lib, leave wrapper here
 	* introduce handlers
 
-## handlers
-
-* shorten names (as in valid)
-
 ## modularity
 
 * body parsing on demand
