@@ -1,3 +1,10 @@
+## batch
+
+* allow to use previous results in batched requests
+* fix problems with headers searching (auth, clientInfo - will fail for now)
+* result format - use array?
+* optionally fail on error
+
 ## REST
 
 * stateless all the way
