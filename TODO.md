@@ -1,8 +1,8 @@
 ## batch
 
 * allow to use previous results in batched requests
+	* ability to fetch less data than used
 * fix problems with headers searching (auth, clientInfo - will fail for now)
-* result format - use array?
 * optionally fail on error
 
 ## REST
