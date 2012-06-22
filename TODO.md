@@ -1,3 +1,5 @@
+* make 405 (method not allowed) standard reaction on requesting undeclared method on resource
+
 ## handlers
 
 * fields
