@@ -1,4 +1,8 @@
+* move _json parsing to mechanics, add headers there
+* don't use auth from cookie by default (as CSRF protection) - think about it and HttpOnly
 * make 405 (method not allowed) standard reaction on requesting undeclared method on resource
+
+* add server.use(express.compress()); to config/web after migration to connect 2.X
 
 ## handlers
 
