@@ -3,6 +3,8 @@
 
 * add server.use(express.compress()); to config/web after migration to connect 2.X
 
+* use domains for error handling and to ensure every request will be responded !!!
+
 ## handlers
 
 * fields
