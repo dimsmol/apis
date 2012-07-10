@@ -1,9 +1,11 @@
+* require logical methods for non-http
+* remove method detection from mechanics
+
+* restrict batch to POST or 'call' (maybe allow GET if all subrequests are GET)
 * move _json parsing to mechanics, add headers there
-* make 405 (method not allowed) standard reaction on requesting undeclared method on resource
-
-* add server.use(express.compress()); to config/web after migration to connect 2.X
-
 * use domains for error handling and to ensure every request will be responded !!!
+
+* add server.use(express.compress()); to config/web after express migration to connect 2.X
 
 ## handlers
 
@@ -41,7 +43,7 @@
 
 * implement url parsing
 
-## transportation
+## transport
 
 * way to send custom header along with message, both for send() and sendResult()
 * way to specify header to send for result handler
