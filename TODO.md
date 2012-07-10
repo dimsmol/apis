@@ -1,6 +1,3 @@
-* require logical methods for non-http
-* remove method detection from mechanics
-
 * restrict batch to POST or 'call' (maybe allow GET if all subrequests are GET)
 * move _json parsing to mechanics, add headers there
 * use domains for error handling and to ensure every request will be responded !!!
