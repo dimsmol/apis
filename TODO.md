@@ -1,19 +1,19 @@
-* move _json parsing to mechanics, add headers there
 * create a page allowing to easily make test requests !!!
+
+* add fields handler
+* add range (skip, limit) handler
 
 * use domains for error handling and to ensure every request will be responded !!!
 
+* for clientInfo search corresponding fields in header, not only query
+
+## compression
+
 * add server.use(express.compress()); to config/web after express migration to connect 2.X
-
-## handlers
-
-* fields
-* range (skip, limit)
 
 ## batch
 
 * ability to fetch less data than used in 'apply' (?)
-* fix problems with headers searching (auth, clientInfo - will fail for now)
 * optionally fail on error
 
 ## REST
