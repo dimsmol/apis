@@ -1,7 +1,8 @@
-* restrict batch to POST or 'call' (maybe allow GET if all subrequests are GET)
 * move _json parsing to mechanics, add headers there
 * use domains for error handling and to ensure every request will be responded !!!
 
+* allow batch request to be GET/'get' if all inner requests are 'get' only
+	* move method check to handle()
 * add server.use(express.compress()); to config/web after express migration to connect 2.X
 
 ## handlers
