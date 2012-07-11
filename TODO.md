@@ -42,8 +42,8 @@
 
 ## transport
 
-* way to send custom header along with message, both for send() and sendResult()
-* way to specify header to send for result handler
+* way to send custom headers along with message, both for send() and sendResult()
+* way to specify headers to send for result handler
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 ## stats
