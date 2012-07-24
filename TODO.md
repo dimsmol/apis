@@ -1,7 +1,7 @@
-* create a page allowing to easily make test requests !!!
-
 * add fields handler
 * add range (skip, limit) handler
+
+* create a page allowing to easily make test requests !!!
 
 * use domains for error handling and to ensure every request will be responded !!!
 
