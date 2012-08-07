@@ -22,10 +22,7 @@
 		"url": "https://github.com/dimsmol/apis"
 	},
 	"directories": {
-		"lib": "./lib",
-		"bin": "./bin",
-		"doc": "./doc",
-		"example": "./example"
+		"lib": "./lib"
 	},
 	"main": "./lib/index"
 }
