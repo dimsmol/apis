@@ -5,7 +5,13 @@
 
 * use domains for error handling and to ensure every request will be responded !!!
 
-* for clientInfo search corresponding fields in header, not only query
+* fix broken clientInfo and its problems:
+	* intersects with auth
+	* uses strange data source
+	* needs policy for batches
+
+* tls handler
+
 
 ## compression
 
@@ -13,6 +19,8 @@
 
 ## batch
 
+* add opt handler set for batch (to allow specify auth, etc.)
+* noBatch handler
 * ability to fetch less data than used in 'apply' (?)
 * optionally fail on error
 

@@ -12,7 +12,8 @@
 	"dependencies": {
 		"nerr": "~0.0.1",
 		"valid": "~0.0.2",
-		"units": "~0.0.1"
+		"units": "~0.0.1",
+		"authen": "~0.0.1"
 	},
 	"engines": {
 		"node": "~0.8.0"
