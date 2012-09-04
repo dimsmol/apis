@@ -1,3 +1,7 @@
+* mechanics: check path before ctx construction
+* fix bad error report on json parsing problems for sockets
+* fix assymetric reaction on empty body for web and socket mechanics
+
 * add fields handler
 * add range (skip, limit) handler
 
@@ -5,17 +9,12 @@
 
 * use domains for error handling and to ensure every request will be responded !!!
 
-* fix broken clientInfo and its problems:
-	* intersects with auth
-	* uses strange data source
-	* needs policy for batches
-
 * tls handler
 
 
 ## compression
 
-* add server.use(express.compress()); to config/web after express migration to connect 2.X
+* add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
 
 ## batch
 
