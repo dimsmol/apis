@@ -1,3 +1,4 @@
+* add HEAD request support
 * mechanics: check path before ctx construction
 * fix bad error report on json parsing problems for sockets
 * fix assymetric reaction on empty body for web and socket mechanics
