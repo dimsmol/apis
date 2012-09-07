@@ -1,3 +1,11 @@
+## Security Note
+
+All apis resources are by default fully CORS and JSONP available. You must use CSRF protection for all your authenticated requests (even for GET requests) and apis supports such protection by default too. Optionally, you can check Origin of your requests or disable CORS/JSONP functionality (completely or for choosen request handlers).
+
+By default, apis philosophy is to allow cross-origin requests and be ready for them.
+
+Also, by default, every resource will have 'options' handler providing resource description and it will not be protected by authentication or something. You can allways override this handler with null or your own variant.
+
 ## Handlers
 
 Handler interface:

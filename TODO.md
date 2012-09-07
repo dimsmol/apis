@@ -7,6 +7,8 @@
 * fix bad error report on json parsing problems for sockets
 * fix assymetric reaction on empty body for web and socket mechanics
 
+* make standard 'options' handler more informative (provide contract)
+
 * add fields handler
 * add range (skip, limit) handler
 
