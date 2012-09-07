@@ -1,3 +1,5 @@
+* get rid of undocumented res._headers somehow (wrap setHeader, removeHeader?)
+
 * think about usage of HTTP headers within sockets/batches/jsonp
 * move 'method' to headers?
 * move 'callback' to headers? - probably not, because used to recognize JSONP
