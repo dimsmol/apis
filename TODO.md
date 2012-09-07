@@ -1,3 +1,7 @@
+* think about usage of HTTP headers within sockets/batches/jsonp
+* move 'method' to headers?
+* move 'callback' to headers? - probably not, because used to recognize JSONP
+
 * add HEAD request support
 * mechanics: check path before ctx construction
 * fix bad error report on json parsing problems for sockets
