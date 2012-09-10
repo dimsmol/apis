@@ -21,6 +21,8 @@
 * tls handler
 
 
+* JSONP origin-based restriction, to prevent distributed browser-based atacks (how? is it possible at all?)
+
 ## compression
 
 * add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
