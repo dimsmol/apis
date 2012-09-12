@@ -1,5 +1,3 @@
-* use headers['X-Method'] instead of query.method
-
 * fix bad error report on json parsing problems for sockets
 * fix assymetric reaction on empty body for web and socket mechanics
 * rename serial & requestSerial to requestId
