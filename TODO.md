@@ -1,6 +1,5 @@
-* fix bad error report on json parsing problems for sockets
+* fix bad error report on json parsing problems
 * fix assymetric reaction on empty body for web and socket mechanics
-* rename serial & requestSerial to requestId
 * mechanics: check path before ctx construction
 
 * create a page allowing to easily make test requests
