@@ -1,68 +1,42 @@
-* get rid of undocumented res._headers somehow (wrap setHeader, removeHeader?)
+* use headers['X-Method'] instead of query.method
 
-* think about usage of HTTP headers within sockets/batches/jsonp
-* move 'method' to headers?
-* move 'callback' to headers? - probably not, because used to recognize JSONP
-
-* add HEAD request support
-* mechanics: check path before ctx construction
 * fix bad error report on json parsing problems for sockets
 * fix assymetric reaction on empty body for web and socket mechanics
+* rename serial & requestSerial to requestId
+* mechanics: check path before ctx construction
 
-* make standard 'options' handler more informative (provide contract)
+* create a page allowing to easily make test requests
+	* with autoconversion from common logical headers to HTTP headers
+* use domains for error handling and to ensure every request will be responded
 
-* add fields handler
-* add range (skip, limit) handler
+## WARN
 
-* create a page allowing to easily make test requests !!!
-
-* use domains for error handling and to ensure every request will be responded !!!
-
-* tls handler
-
-
-* JSONP origin-based restriction, to prevent distributed browser-based atacks (how? is it possible at all?)
-
-## compression
-
-* add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
+* usage of undocumented res._headers (wrap setHeader, removeHeader instead?)
+* JSONP has no origin-based restrictions, potential subject of distributed browser-based atacks (don't know good way to fix)
+* no compression - add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
 
 ## batch
 
-* add opt handler set for batch (to allow specify auth, etc.)
-* noBatch handler
+* review batches (possibly broken)
 * ability to fetch less data than used in 'apply' (?)
 * optionally fail on error
 
-## REST
-
-* stateless all the way
-* GET must be cacheable !!!
-	* think about url & args, how to provide cacheable structure
-* PUT vs POST
-	* PUT is safe to repeat (example: update something)
-	* POST is not safe to repeat - can create copies (example: create)
-* DELETE is safe to repeat (just ensures that it's deleted)
-
-## libs
+## misc
 
 * move logging to standalone lib, leave wrapper here
 	* introduce handlers
 
-## modularity
+* add fields handler
+* add range (skip, limit) handler
+* add tls handler
 
 * body parsing on demand
 * cookie parsing on demand
 * static must become part of contract
 
-## routing
-
-* implement url parsing
-
-## transport
-
-* way to send custom headers along with message, both for send() and sendResult()
-* way to specify headers to send for result handler
+* make standard 'options' handler more informative (provide contract?)
+* add standard HEAD request support
+* implement url parsing for routing
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 ## stats
