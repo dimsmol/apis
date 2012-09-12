@@ -18,3 +18,13 @@ HandlerSync interface:
 * `setup(chain)` - same as in Handler
 * `handle(ctx)` - do not override in regular handlers, use `handleSync(ctx)` instead
 * `handleSync(ctx)` - sync handle, must not use `ctx.next`, `ctx.error` and `ctx.cb` directly or indirectly, but can throw exceptions and return value will be used as argument of `ctx.next` automatically
+
+## REST notes
+
+* stateless all the way
+* GET must be cacheable !!!
+	* think about url & args, how to provide cacheable structure
+* PUT vs POST
+	* PUT is safe to repeat (example: update something)
+	* POST is not safe to repeat - can create copies (example: create)
+* DELETE is safe to repeat (just ensures that it's deleted)
