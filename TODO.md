@@ -2,19 +2,20 @@
 * fix error report on json parsing problems - data handler
 * fix error report on headers json parsing problems (socket, jsonp, ?)
 
-* cookie parsing on demand
-* implement url parsing for routing
-* static must become part of contract
-
 * mechanics: check path before ctx construction
-
-* create a page allowing to easily make test requests
-	* with autoconversion from common logical headers to HTTP headers
-* use domains for error handling and to ensure every request will be responded
 
 * replace express JSONP implementation with own
 	* with more granularity
 	* and correct checks (e.g. method == 'GET')
+
+* cookie parsing on demand
+* implement url parsing for routing
+* static must become part of contract
+
+* create a page allowing to easily make test requests
+	* with autoconversion from common logical headers to HTTP headers
+
+* use domains for error handling and to ensure every request will be responded
 
 ## WARN
 
