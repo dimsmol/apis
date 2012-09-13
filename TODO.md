@@ -1,10 +1,20 @@
-* fix bad error report on json parsing problems
-* fix assymetric reaction on empty body for web and socket mechanics
+* fix error report on body too large (must be a warning)
+* fix error report on json parsing problems - data handler
+* fix error report on headers json parsing problems (socket, jsonp, ?)
+
+* cookie parsing on demand
+* implement url parsing for routing
+* static must become part of contract
+
 * mechanics: check path before ctx construction
 
 * create a page allowing to easily make test requests
 	* with autoconversion from common logical headers to HTTP headers
 * use domains for error handling and to ensure every request will be responded
+
+* replace express JSONP implementation with own
+	* with more granularity
+	* and correct checks (e.g. method == 'GET')
 
 ## WARN
 
@@ -27,13 +37,8 @@
 * add range (skip, limit) handler
 * add tls handler
 
-* body parsing on demand
-* cookie parsing on demand
-* static must become part of contract
-
 * make standard 'options' handler more informative (provide contract?)
 * add standard HEAD request support
-* implement url parsing for routing
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 ## stats
