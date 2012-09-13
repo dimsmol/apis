@@ -7,8 +7,9 @@
 * replace express JSONP implementation with own
 	* with more granularity
 	* and correct checks (e.g. method == 'GET')
+* get rid of express and use pure connect (or even pure http)
+	* then separate transport req and res from my own - to not change standard classes (?)
 
-* cookie parsing on demand
 * implement url parsing for routing
 * static must become part of contract
 
