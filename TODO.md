@@ -1,4 +1,3 @@
-* fix error report on body too large (must be a warning)
 * fix error report on json parsing problems - data handler
 * fix error report on headers json parsing problems (socket, jsonp, ?)
 
