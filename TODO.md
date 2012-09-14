@@ -1,4 +1,6 @@
-* fix error report on json parsing problems - data handler
+* data handler:
+	* check content type
+	* fix error report on json parsing
 * fix error report on headers json parsing problems (socket, jsonp, ?)
 
 * mechanics: check path before ctx construction
