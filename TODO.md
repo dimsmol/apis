@@ -1,6 +1,8 @@
-* fix error report on headers json parsing problems (socket, jsonp, ?)
-
 * mechanics: check path before ctx construction
+
+* implement general NotFound
+	* for sockets
+	* for web - own instead of express
 
 * replace express JSONP implementation with own
 	* with more granularity
