@@ -1,15 +1,17 @@
-* mechanics: check path before ctx construction
-
 * implement url parsing for routing
 * static must become part of contract
+
+* use domains for error handling and to ensure every request will be responded
 
 * create a page allowing to easily make test requests
 	* with autoconversion from common logical headers to HTTP headers
 
-* use domains for error handling and to ensure every request will be responded
-
 * get rid of express and use pure connect (or even pure http)
 	* then separate transport req and res from my own - to not change standard classes (?)
+
+* add ability to specify pre and post handlers for contract
+	* keep in mind nested contracts structure
+	* actively use ctx during resolution
 
 ## WARN
 
@@ -33,7 +35,6 @@
 * add tls handler
 
 * make standard 'options' handler more informative (provide contract?)
-* add standard HEAD request support
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 ## stats
