@@ -1,5 +1,7 @@
 * make authorization check async to allow use db or something
 
+* make sure apis can support compression from new connect (2.X)
+
 * implement url parsing for routing
 * static must become part of contract
 
