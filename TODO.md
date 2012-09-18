@@ -1,3 +1,5 @@
+* make authorization check async to allow use db or something
+
 * implement url parsing for routing
 * static must become part of contract
 
