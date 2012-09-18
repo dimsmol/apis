@@ -1,8 +1,5 @@
 * mechanics: check path before ctx construction
 
-* replace express JSONP implementation with own
-	* with more granularity
-	* and correct checks (e.g. method == 'GET')
 * implement url parsing for routing
 * static must become part of contract
 
