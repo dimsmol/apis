@@ -1,5 +1,8 @@
 * mechanics: check path before ctx construction
 
+* provide response on headers parsing problems
+* provide way to be tolerant to too large requests
+
 * implement general NotFound
 	* for sockets
 	* for web - own instead of express
