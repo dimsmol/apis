@@ -1,11 +1,9 @@
-* make authorization check async to allow use db or something
-
-* make sure apis can support compression from new connect (2.X)
-
 * implement url parsing for routing
 * static must become part of contract
 
 * use domains for error handling and to ensure every request will be responded
+
+* make sure apis can support compression from new connect (2.X)
 
 * create a page allowing to easily make test requests
 	* with autoconversion from common logical headers to HTTP headers
