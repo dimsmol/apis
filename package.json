@@ -10,11 +10,13 @@
 	"preferGlobal": false,
 	"private": false,
 	"dependencies": {
-		"cookie": "0.0.4",
+		"send": "~0.0.4",
+		"cookie": "~0.0.4",
 		"nerr": "~0.0.1",
 		"valid": "~0.0.2",
 		"units": "~0.0.1",
-		"authen": "~0.0.1"
+		"authen": "~0.0.1",
+		"ops": "~0.0.1"
 	},
 	"engines": {
 		"node": "~0.8.0"

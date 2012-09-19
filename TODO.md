@@ -1,4 +1,9 @@
-* static must become part of contract
+* st:
+	* provide sugar
+	* fix extractPath()
+	* remove rootPath from settings
+	* remove static stuff from settings and mechanics
+* depend on express and sockjs (and on pg for npgt too)
 
 * use domains for error handling and to ensure every request will be responded
 
