@@ -1,4 +1,3 @@
-* implement url parsing for routing
 * static must become part of contract
 
 * use domains for error handling and to ensure every request will be responded
