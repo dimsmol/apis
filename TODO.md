@@ -1,5 +1,3 @@
-* st: convert errors
-
 * use domains for error handling and to ensure every request will be responded
 
 * make sure apis can support compression from new connect (2.X)
