@@ -10,6 +10,7 @@
 
 ## WARN
 
+* extending http.IncomingMessage.prototype (just like express 2.X does)
 * usage of undocumented res._headers (wrap setHeader, removeHeader instead?)
 * JSONP has no origin-based restrictions, potential subject of distributed browser-based atacks (don't know good way to fix)
 * no compression - add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
