@@ -1,5 +1,4 @@
 * st: convert errors
-* depend on express and sockjs (and on pg for npgt too)
 
 * use domains for error handling and to ensure every request will be responded
 
