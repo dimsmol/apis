@@ -13,6 +13,7 @@
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
 	* actively use ctx during resolution
+	* possibly move result functionality somewhere
 
 ## WARN
 
