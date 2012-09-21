@@ -1,12 +1,7 @@
 * use domains for error handling and to ensure every request will be responded
 
-* make sure apis can support compression from new connect (2.X)
-
 * create a page allowing to easily make test requests
 	* with autoconversion from common logical headers to HTTP headers
-
-* get rid of express and use pure connect (or even pure http)
-	* then separate transport req and res from my own - to not change standard classes (?)
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
