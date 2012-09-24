@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<head>
+	<title>apis test page</title>
+	<link href="//netdna.bootstrapcdn.com/twitter-bootstrap/2.1.1/css/bootstrap-combined.min.css" rel="stylesheet">
+	<link rel="stylesheet" type="text/css" href="css/main.css" />
+	<script src="http://cdn.sockjs.org/sockjs-0.2.min.js"></script>
+	<script src="js/main.js"></script>
+</head>
+<body>
+<div class="container-fluid">
+<div class="row-fluid">
+	<div class="span6">
+		<h4>req</h4>
+		<div>
+			<input id="request-base" type="text" placeholder="base" class="span9" />
+			<input id="request-callback" type="text" placeholder="JSONP callback" class="span3" />
+		</div>
+		<div>
+			<select id="request-method" class="span3">
+				<option value="options">options</option>
+				<option value="get" selected>get</option>
+				<option value="call">call</option>
+				<option value="create">create</option>
+				<option value="update">update</option>
+				<option value="del">del</option>
+			</select>
+			<span id="request-path-group" class="control-group">
+				<input id="request-path" type="text" placeholder="path" autofocus="true" class="span9" />
+			</span>
+		</div>
+		<div id="request-headers-group" class="control-group">
+			<textarea id="request-headers" type="text" placeholder="headers" rows="3" class="span12"></textarea>
+		</div>
+		<div id="request-body-group" class="control-group">
+			<textarea id="request-body" type="text" placeholder="body" rows="6" class="span12"></textarea>
+		</div>
+		<div>
+			<button id="socket-connect" class="btn btn-info span3">connect</button>
+			<button id="socket-send" class="btn btn-inverse offset3 span3">web socket</button>
+			<button id="http-send" class="btn btn-primary span3">http</button>
+		</div>
+		<div>
+			<div>&nbsp;</div>
+			<label class="checkbox">
+				smart headers
+				<input type="checkbox" id="request-smart-headers" checked="true" />
+			</label>
+			<label class="checkbox">
+				raw body
+				<input type="checkbox" id="request-raw-body" />
+			</label>
+		</div>
+	</div>
+
+	<div class="span6">
+		<h4>res</h4>
+		<div>
+			<textarea id="response-headers" type="text" placeholder="headers" rows="6" class="span12"></textarea>
+		</div>
+		<div>
+			<textarea id="response-body" type="text" placeholder="body" rows="10" class="span12"></textarea>
+		</div>
+	</div>
+</div>
+</div>
+</body>
+</html>

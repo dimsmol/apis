@@ -1,7 +1,6 @@
 * use domains for error handling and to ensure every request will be responded
 
-* create a page allowing to easily make test requests
-	* with autoconversion from common logical headers to HTTP headers
+* close TODOs on testPage
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
@@ -10,7 +9,7 @@
 
 ## WARN
 
-* extending http.IncomingMessage.prototype (just like express 2.X does)
+* extends http.IncomingMessage.prototype (just like express 2.X does)
 * usage of undocumented res._headers (wrap setHeader, removeHeader instead?)
 * JSONP has no origin-based restrictions, potential subject of distributed browser-based atacks (don't know good way to fix)
 * no compression - add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
