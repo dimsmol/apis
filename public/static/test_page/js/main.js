@@ -1,6 +1,7 @@
 (function () {
 
 // TODO
+// - make http send default action on 'enter' key
 // - try headers+body idea
 // - change path emptiness checking
 // - export classes
