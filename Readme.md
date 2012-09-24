@@ -13,7 +13,7 @@ Handler interface:
 * `setup(chain)` - can be used to perform some interaction between handlers of chain, used by `Impl` and `Ret`
 * `handle(ctx)` - async handle, must not throw any exceptions, use `ctx.error()` instead, usually must call `ctx.next()` at some point
 
-## test page usage
+## Test page
 
 To get test page on `/test_page/index.html` add to your contract:
 
