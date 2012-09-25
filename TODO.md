@@ -14,6 +14,11 @@
 * JSONP has no origin-based restrictions, potential subject of distributed browser-based atacks (don't know good way to fix)
 * no compression - add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
 
+## test page
+
+* move to separate project
+* use ace for highlighting (?)
+
 ## batch
 
 * review batches (possibly broken)
