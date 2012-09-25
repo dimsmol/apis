@@ -6,7 +6,6 @@ window.apis = apis;
 
 // TODO
 // - try headers+body idea
-// - add code highlighter
 
 var Socket = function (onConnectFunc, onMessageFunc, onCloseFunc) {
 	this.onConnectFunc = onConnectFunc;
@@ -195,6 +194,11 @@ TestPage.prototype.initUi = function () {
 	this.clearErrOnChange(this.requestHeadersField, this.requestHeadersFieldGroup);
 	this.clearErrOnChange(this.requestBodyField, this.requestBodyFieldGroup);
 
+	this.fixTabs(this.requestHeadersField);
+	this.fixTabs(this.requestBodyField);
+	this.fixTabs(this.responseHeadersField);
+	this.fixTabs(this.responseBodyField);
+
 	this.initButtons();
 	this.initKeyHandler();
 };
@@ -202,6 +206,25 @@ TestPage.prototype.initUi = function () {
 TestPage.prototype.byId = function (id) {
 	return document.getElementById(id);
 };
+
+TestPage.prototype.fixTabs = function (el) {
+	el.addEventListener('keydown', function (e) {
+		if(e.keyCode == 9 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
+			var start = this.selectionStart;
+			var end = this.selectionEnd;
+
+			var value = this.value;
+			this.value = [
+				value.substring(0, start),
+				'\t',
+				value.substring(end)
+			].join('');
+
+			this.selectionStart = this.selectionEnd = start + 1;
+			e.preventDefault();
+		}
+	});
+}
 
 TestPage.prototype.setErr = function (el, errEl, msg) {
 	el.title = msg;
@@ -220,7 +243,7 @@ TestPage.prototype.clearErrOnChange = function (el, errEl) {
 		self.clearErr(el, errEl);
 	};
 	el.addEventListener('change', clearFunc);
-	el.addEventListener('keypress', clearFunc);
+	el.addEventListener('keydown', clearFunc);
 	el.addEventListener('mousedown', clearFunc);
 	el.addEventListener('blur', clearFunc);
 };
