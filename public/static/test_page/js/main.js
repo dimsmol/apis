@@ -1,13 +1,11 @@
 (function () {
+"use strict";
+
+var apis = window.apis || {};
+window.apis = apis;
 
 // TODO
-// - make http send default action on 'enter' key
 // - try headers+body idea
-// - change path emptiness checking
-// - export classes
-// - implement noConflict
-// - move actual execution to html
-// - include sockjs & bootstrap into distribution to allow offline work
 // - add code highlighter
 
 var Socket = function (onConnectFunc, onMessageFunc, onCloseFunc) {
@@ -198,6 +196,7 @@ TestPage.prototype.initUi = function () {
 	this.clearErrOnChange(this.requestBodyField, this.requestBodyFieldGroup);
 
 	this.initButtons();
+	this.initKeyHandler();
 };
 
 TestPage.prototype.byId = function (id) {
@@ -217,25 +216,17 @@ TestPage.prototype.clearErr = function (el, errEl) {
 
 TestPage.prototype.clearErrOnChange = function (el, errEl) {
 	var self = this;
-	el.addEventListener('change', function () {
+	var clearFunc = function () {
 		self.clearErr(el, errEl);
-	});
-	el.addEventListener('keypress', function () {
-		self.clearErr(el, errEl);
-	});
-	el.addEventListener('mousedown', function () {
-		self.clearErr(el, errEl);
-	});
+	};
+	el.addEventListener('change', clearFunc);
+	el.addEventListener('keypress', clearFunc);
+	el.addEventListener('mousedown', clearFunc);
+	el.addEventListener('blur', clearFunc);
 };
 
-TestPage.prototype.reqval = function (el, errEl) {
-	var v = el.value;
-	if (!v) {
-		var msg = 'Value is required';
-		this.setErr(el, errEl, msg);
-		throw new Error('Validation error');
-	}
-	return v;
+TestPage.prototype.setPathRequiredErr = function () {
+	this.setErr(this.requestPathField, this.requestPathFieldGroup, 'path is required');
 };
 
 TestPage.prototype.jsonval = function (el, errEl) {
@@ -299,14 +290,19 @@ TestPage.prototype.socketSend = function () {
 	this.clearResult();
 	var fields = this.collectFields();
 
-	var headers = fields.headers;
+	var headers = fields.headers || {};
 	headers.path = headers.path || fields.path;
 	headers.method = headers.method || fields.method;
 
-	var socket = this.socket;
-	socket.ensureConnected(fields.base, function () {
-		socket.send(headers, fields.body);
-	});
+	if (!headers.path) {
+		this.setPathRequiredErr();
+	}
+	else {
+		var socket = this.socket;
+		socket.ensureConnected(fields.base, function () {
+			socket.send(headers, fields.body);
+		});
+	}
 };
 
 TestPage.prototype.createHttp = function () {
@@ -352,20 +348,25 @@ TestPage.prototype.httpSend = function () {
 		this.applyHttpSmartHeaders(fields);
 	}
 
-	this.http.send(
-		fields.base,
-		fields.path,
-		fields.method,
-		fields.headers,
-		fields.body,
-		fields.callback
-	);
+	if (!fields.path) {
+		this.setPathRequiredErr();
+	}
+	else {
+		this.http.send(
+			fields.base,
+			fields.path,
+			fields.method,
+			fields.headers,
+			fields.body,
+			fields.callback
+		);
+	}
 };
 
 TestPage.prototype.collectFields = function (cb) {
 	return {
 		base: this.requestBaseField.value,
-		path: this.reqval(this.requestPathField, this.requestPathFieldGroup),
+		path: this.requestPathField.value,
 		method: this.requestMethodField.value,
 		headers: this.jsonval(this.requestHeadersField, this.requestHeadersFieldGroup),
 		body: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
@@ -409,10 +410,38 @@ TestPage.prototype.initButtons = function (headers, body) {
 	});
 };
 
-var testPage = new TestPage();
+TestPage.prototype.initKeyHandler = function () {
+	var self = this;
+	window.addEventListener('keypress', function (e) {
+		if (e.keyCode == 13) {
+			var tag = e.srcElement.tagName;
+			if (tag != 'BUTTON') {
+				var ok = true;
+				if (tag == 'TEXTAREA') {
+					if (e.ctrlKey) {
+						e.preventDefault();
+					}
+					else {
+						ok = false;
+					}
+				}
+				if (ok) {
+					if (e.altKey) {
+						self.socketSendButton.click();
+					}
+					else {
+						self.httpSendButton.click();
+					}
+				}
+			}
+		}
+	});
+};
 
-document.addEventListener("DOMContentLoaded", function () {
-	testPage.initUi();
-});
+apis.testPage = {
+	Socket: Socket,
+	Http: Http,
+	TestPage: TestPage
+};
 
 })();
