@@ -4,8 +4,6 @@
 var apis = window.apis || {};
 window.apis = apis;
 
-// TODO
-// - try headers+body idea
 
 var Socket = function (onConnectFunc, onMessageFunc, onCloseFunc) {
 	this.onConnectFunc = onConnectFunc;

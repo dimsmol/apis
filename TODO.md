@@ -1,7 +1,5 @@
 * use domains for error handling and to ensure every request will be responded
 
-* close TODOs on testPage
-
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
 	* actively use ctx during resolution
@@ -18,6 +16,7 @@
 
 * move to separate project
 * use ace for highlighting (?)
+* ability to copy/save/load requests
 
 ## batch
 
