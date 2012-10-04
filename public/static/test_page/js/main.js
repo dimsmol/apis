@@ -156,7 +156,7 @@ Http.prototype.send = function (base, path, method, headers, body, callback) {
 		if (method != 'create') {
 			httpRequest.setRequestHeader('X-Method', method);
 		}
-		this.setHeaders(httpRequest);
+		this.setHeaders(httpRequest, headers);
 		httpRequest.send(body);
 	}
 };
