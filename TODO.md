@@ -1,3 +1,13 @@
+* client
+	* introduce jsonp as separated class
+	* and later batch
+	* http
+		* open before setting headers
+		* headers translation
+		* readystate - errors handling
+	* response parsing - how?
+
+
 * use domains for error handling and to ensure every request will be responded
 
 * add ability to specify pre and post handlers for contract
