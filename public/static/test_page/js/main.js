@@ -105,7 +105,7 @@ Http.prototype.setHeaders = function (req, headers) {
 	}
 };
 
-Http.prototype.send = function (base, path, method, headers, body, callback) {
+Http.prototype.send = function (base, path, method, headers, body, xdomain, callback) {
 	if (body === undefined) {
 		body = '';
 	}
@@ -123,7 +123,7 @@ Http.prototype.send = function (base, path, method, headers, body, callback) {
 		}
 	};
 
-	if (method == 'get' || callback) {
+	if (method == 'get' || xdomain) {
 		var parts = [];
 		if (callback) {
 			if (method != 'get') {
@@ -136,6 +136,9 @@ Http.prototype.send = function (base, path, method, headers, body, callback) {
 		}
 		if (body) {
 			parts.push('body=' + encodeURIComponent(body));
+		}
+		if (xdomain) {
+			parts.push('xdomain=' + encodeURIComponent(xdomain));
 		}
 		if (callback) {
 			parts.push('callback=' + encodeURIComponent(callback));
@@ -176,7 +179,7 @@ TestPage.prototype.initUi = function () {
 	this.requestHeadersFieldGroup = this.byId('request-headers-group');
 	this.requestBodyField = this.byId('request-body');
 	this.requestBodyFieldGroup = this.byId('request-body-group');
-	this.requestJsonpCallbackField = this.byId('request-callback');
+	this.requestXdomainField = this.byId('request-xdomain');
 
 	this.requestSmartHeadersField = this.byId('request-smart-headers');
 	this.requestRawBodyField = this.byId('request-raw-body');
@@ -222,7 +225,7 @@ TestPage.prototype.fixTabs = function (el) {
 			e.preventDefault();
 		}
 	});
-}
+};
 
 TestPage.prototype.setErr = function (el, errEl, msg) {
 	el.title = msg;
@@ -365,7 +368,7 @@ TestPage.prototype.httpSend = function () {
 	this.clearResult();
 
 	var fields = this.collectFields();
-	if (fields.headers && this.requestSmartHeadersField.checked) {
+	if (fields.headers && this.requestSmartHeadersField.checked && !fields.xdomain) {
 		this.applyHttpSmartHeaders(fields);
 	}
 
@@ -373,13 +376,15 @@ TestPage.prototype.httpSend = function () {
 		this.setPathRequiredErr();
 	}
 	else {
+		var callback = (fields.xdomain == 'jsonp' ? 'callback' : null);
 		this.http.send(
 			fields.base,
 			fields.path,
 			fields.method,
 			fields.headers,
 			fields.body,
-			fields.callback
+			fields.xdomain,
+			callback
 		);
 	}
 };
@@ -391,7 +396,7 @@ TestPage.prototype.collectFields = function (cb) {
 		method: this.requestMethodField.value,
 		headers: this.jsonval(this.requestHeadersField, this.requestHeadersFieldGroup),
 		body: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
-		callback: this.requestJsonpCallbackField.value
+		xdomain: this.requestXdomainField.value == 'none' ? null : this.requestXdomainField.value
 	};
 };
 
@@ -404,11 +409,13 @@ TestPage.prototype.showResult = function (status, headers, body) {
 	if (headers.constructor !== String) {
 		headers = JSON.stringify(headers, null, '\t');
 	}
-	try {
-		body = JSON.stringify(JSON.parse(body), null, '\t');
-	}
-	catch (err) { // to be ready to non-json responses
-		console.log(err);
+	if (!body || body.constructor !== String) {
+		try {
+			body = JSON.stringify(JSON.parse(body), null, '\t');
+		}
+		catch (err) { // to be ready to non-json responses
+			console.log(err);
+		}
 	}
 
 	this.responseHeadersField.value = headers;
