@@ -409,13 +409,10 @@ TestPage.prototype.showResult = function (status, headers, body) {
 	if (headers.constructor !== String) {
 		headers = JSON.stringify(headers, null, '\t');
 	}
-	if (!body || body.constructor !== String) {
-		try {
-			body = JSON.stringify(JSON.parse(body), null, '\t');
-		}
-		catch (err) { // to be ready to non-json responses
-			console.log(err);
-		}
+	try {
+		body = JSON.stringify(JSON.parse(body), null, '\t');
+	}
+	catch (err) { // to be ready to non-json responses
 	}
 
 	this.responseHeadersField.value = headers;
