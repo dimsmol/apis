@@ -66,7 +66,7 @@ Socket.prototype.send = function(headers, body) {
 	if (body === undefined) {
 		body = '';
 	}
-	if (body == null || body.constructor !== String) {
+	else {
 		body = JSON.stringify(body);
 	}
 
@@ -109,7 +109,7 @@ Http.prototype.send = function (base, path, method, headers, body, xdomain, call
 	if (body === undefined) {
 		body = '';
 	}
-	if (body == null || body.constructor !== String) {
+	else {
 		body = JSON.stringify(body);
 	}
 
