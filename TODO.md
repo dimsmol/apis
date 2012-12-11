@@ -1,3 +1,7 @@
+* new run scheme (provide starting up bin/)
+
+* use domains for error handling and to ensure every request will be responded
+
 * client
 	* introduce jsonp as separated class
 	* and later batch
@@ -6,9 +10,6 @@
 		* headers translation
 		* readystate - errors handling
 	* response parsing - how?
-
-
-* use domains for error handling and to ensure every request will be responded
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
