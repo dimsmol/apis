@@ -1,4 +1,5 @@
 * new run scheme (provide starting up bin/)
+* ability to operate without never?
 * use domains for error handling and to ensure every request will be responded
 * syslog
 
