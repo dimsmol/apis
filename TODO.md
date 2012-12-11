@@ -49,5 +49,7 @@
 
 ## stats
 
+* provide cluster stats
+
 * add some kind of lifetime distribution
 * add trembling users detection (frequently performing connect then disconnect) (?)
