@@ -1,6 +1,6 @@
 * new run scheme (provide starting up bin/)
-
 * use domains for error handling and to ensure every request will be responded
+* syslog
 
 * client
 	* introduce jsonp as separated class
@@ -10,11 +10,6 @@
 		* headers translation
 		* readystate - errors handling
 	* response parsing - how?
-
-* add ability to specify pre and post handlers for contract
-	* keep in mind nested contracts structure
-	* actively use ctx during resolution
-	* possibly move result functionality somewhere
 
 ## WARN
 
@@ -40,12 +35,19 @@
 * move logging to standalone lib, leave wrapper here
 	* introduce handlers
 
+* add ability to specify pre and post handlers for contract
+	* keep in mind nested contracts structure
+	* actively use ctx during resolution
+	* possibly move result functionality somewhere
+
 * add fields handler
 * add range (skip, limit) handler
 * add tls handler
 
 * make standard 'options' handler more informative (provide contract?)
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
+
+* lightweight cluster master
 
 ## stats
 
