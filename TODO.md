@@ -1,7 +1,8 @@
-* new run scheme (provide starting up bin/)
-* ability to operate without never?
-* use domains for error handling and to ensure every request will be responded
+* refactor App.init
+	* lightweight apistart, apistop, apidaemon
+	* lightweight cluster master
 * syslog
+* use domains for error handling and to ensure every request will be responded
 
 * client
 	* introduce jsonp as separated class
@@ -35,6 +36,8 @@
 
 * move logging to standalone lib, leave wrapper here
 	* introduce handlers
+* move cluster to standalone library
+* move daemon to standalone library
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
@@ -47,8 +50,6 @@
 
 * make standard 'options' handler more informative (provide contract?)
 * get rid of opt_connectionsToExclude in send - use iterators or whatever
-
-* lightweight cluster master
 
 ## stats
 
