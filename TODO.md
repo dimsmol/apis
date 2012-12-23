@@ -1,6 +1,3 @@
-* refactor App.init
-	* lightweight apistart, apistop, apidaemon
-	* lightweight cluster master
 * syslog
 * use domains for error handling and to ensure every request will be responded
 
