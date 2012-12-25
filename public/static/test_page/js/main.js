@@ -49,6 +49,7 @@ Socket.prototype.connect = function(base, opt_cb) {
 
 	this.conn.onclose = function(e) {
 		self.onCloseFunc(e);
+		self.conn = null;
 	};
 };
 
