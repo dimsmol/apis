@@ -28,8 +28,16 @@
 		"type": "git",
 		"url": "https://github.com/dimsmol/apis"
 	},
+	"bin": {
+		"apis": "./bin/apis"
+	},
 	"directories": {
-		"lib": "./lib"
+		"lib": "./lib",
+		"bin": "./bin"
+	},
+	"scripts": {
+		"start": "node bin/apis start",
+		"stop": "node bin/apis stop",
 	},
 	"main": "./lib/index"
 }
