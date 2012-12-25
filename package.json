@@ -37,7 +37,7 @@
 	},
 	"scripts": {
 		"start": "node bin/apis start",
-		"stop": "node bin/apis stop",
+		"stop": "node bin/apis stop"
 	},
 	"main": "./lib/index"
 }
