@@ -23,15 +23,15 @@ res.subpaths('/test_page', st(apis.tools.testPage.staticPath))
 
 ## Apps known by Loader
 
-* app - app itself, will be loaded from cwd() + '/lib/app'
-* cluster_master - cluster master app, will be loaded from cwd() + '/lib/claster_master' or default will be used
-* daemon_master - daemon start/stop app, will be loaded from cwd() + '/lib/daemon_master' or default will be used
+* app - app itself, will be searched at cwd()+'/lib/app'
+* cluster_master - cluster master app, will be searched at cwd()+'/lib/claster_master'
+* daemon_master - daemon start/stop app, will be searched at cwd()+'/lib/daemon_master'
+
+For any app, if it cannot be found, apis default will be used.
 
 ## Units known by Loader
 
 * core.app - known by app actually (which also is loader), the app itself
-* core.settings - settings, will be loaded from cwd() + '/lib/settings' or default will be used
-* core.handler - main app contract, will be loaded from cwd() + '/lib/contract'
 * core.uncaught - uncaught exception handler
 * core.logging - logging subsystem
 	* core.logging.engines.syslog - syslog logging engine
@@ -39,6 +39,11 @@ res.subpaths('/test_page', st(apis.tools.testPage.staticPath))
 * core.mechanics.socket - socket mechanics, enables web socket communications, runs on top of web mechanics
 	* core.mechanics.socket.connections - web socket connections tracker
 	* core.mechanics.socket.stat - web socket statistics
+
+* core.settings - settings, will be searched at cwd()+'/lib/settings'
+* core.handler - main app contract, will be searched at cwd()+'/lib/contract'
+
+For both core.settings and core.handler units, if unit cannot be found, apis default will be used.
 
 ## REST notes
 
