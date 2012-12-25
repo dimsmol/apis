@@ -1,4 +1,6 @@
-* syslog
+* refactor logging
+	* introduce more sofisticated engines conception
+	* introduce parent?
 * use domains for error handling and to ensure every request will be responded
 
 * client
