@@ -21,6 +21,25 @@ To get test page on `/test_page/index.html` add to your contract:
 res.subpaths('/test_page', st(apis.tools.testPage.staticPath))
 ```
 
+## Apps known by Loader
+
+* app - app itself, will be loaded from cwd() + '/lib/app'
+* cluster_master - cluster master app, will be loaded from cwd() + '/lib/claster_master' or default will be used
+* daemon_master - daemon start/stop app, will be loaded from cwd() + '/lib/daemon_master' or default will be used
+
+## Units known by Loader
+
+* core.app - known by app actually (which also is loader), the app itself
+* core.settings - settings, will be loaded from cwd() + '/lib/settings' or default will be used
+* core.handler - main app contract, will be loaded from cwd() + '/lib/contract'
+* core.uncaught - uncaught exception handler
+* core.logging - logging subsystem
+	* core.logging.engines.syslog - syslog logging engine
+* core.mechanics.web - web mechanics, enables responding on HTTP requests
+* core.mechanics.socket - socket mechanics, enables web socket communications, runs on top of web mechanics
+	* core.mechanics.socket.connections - web socket connections tracker
+	* core.mechanics.socket.stat - web socket statistics
+
 ## REST notes
 
 * stateless all the way
