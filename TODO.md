@@ -36,6 +36,7 @@
 * move daemon to standalone library
 
 * add 'logrotate' command to loader interface (must call 'rotate' on stream-like loggers forcing them to reopen streams)
+* check content-size header as early as possible (?)
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
