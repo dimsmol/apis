@@ -35,6 +35,8 @@
 * move cluster to standalone library
 * move daemon to standalone library
 
+* add ability to call rotate() for loggers with daemon interface, to enable log rotation
+
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
 	* actively use ctx during resolution
