@@ -35,7 +35,7 @@
 * move cluster to standalone library
 * move daemon to standalone library
 
-* add ability to call rotate() for loggers with daemon interface, to enable log rotation
+* add 'logrotate' command to loader interface (must call 'rotate' on stream-like loggers forcing them to reopen streams)
 
 * add ability to specify pre and post handlers for contract
 	* keep in mind nested contracts structure
