@@ -15,6 +15,7 @@
 * usage of undocumented res._headers (wrap setHeader, removeHeader instead?)
 * JSONP has no origin-based restrictions, potential subject of distributed browser-based atacks (don't know good way to fix)
 * no compression - add server.use(express.compress()); to mechanics/web after express migration to connect 2.X
+* web mechanics performs req.pause() before call handler, so it may be reasonable to call resume() somewhere ('data' handler does it)
 
 ## test page
 
