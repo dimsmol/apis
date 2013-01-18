@@ -1,5 +1,3 @@
-* use domains for error handling and to ensure every request will be responded
-
 * client
 	* introduce jsonp as separated class
 	* and later batch
