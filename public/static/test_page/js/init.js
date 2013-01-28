@@ -1,8 +1,10 @@
-(function () {
+require(['./test_page'],
+function(TestPage) {
+"use strict";
 
-var testPage = new apis.testPage.TestPage();
-document.addEventListener("DOMContentLoaded", function () {
+var testPage = new TestPage();
+window.addEventListener('load', function () {
 	testPage.initUi();
 });
 
-})();
+});

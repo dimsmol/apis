@@ -1,11 +1,12 @@
 * client
-	* introduce jsonp as separated class
-	* and later batch
-	* http
-		* open before setting headers
-		* headers translation
-		* readystate - errors handling
-	* response parsing - how?
+	* body parsing options
+	* headers translation options
+	* error handling
+		* httprequest - try{open(), send() ? }, listen 'error', 'timeout' events
+	* abort
+	* timeout
+	* review frame
+	* batch
 
 ## WARN
 
