@@ -260,7 +260,7 @@ TestPage.prototype.showResult = function (result) {
 	var headers = JSON.stringify(result.headers, null, '\t');
 	var body = result.data;
 	try {
-		body = JSON.stringify(JSON.parse(body), null, '\t');
+		body = JSON.stringify(body, null, '\t');
 	}
 	catch (err) { // to be ready to non-json responses
 	}
