@@ -7,6 +7,7 @@
 	* timeout
 	* review frame
 	* batch
+	* fix request id for sockets
 
 ## WARN
 

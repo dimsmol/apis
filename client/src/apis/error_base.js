@@ -19,8 +19,14 @@ inherits(ErrorBase, Error);
 ErrorBase.prototype.name = 'ErrorBase';
 
 ErrorBase.prototype.createStackKeeper = function () {
-	var result = new StackKeeper();
-	Error.captureStackTrace(result, this.constructor);
+	var result;
+	if (Error.captureStackTrace) {
+		result = new StackKeeper();
+		Error.captureStackTrace(result, this.constructor);
+	}
+	else {
+		result = new Error();
+	}
 	return result;
 };
 
@@ -35,7 +41,7 @@ ErrorBase.prototype.toString = function () {
 };
 
 ErrorBase.prototype.getMessage = function () {
-	return 'Generic error';
+	return null;
 };
 
 ErrorBase.prototype.getStackTrace = function () {

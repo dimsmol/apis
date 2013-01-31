@@ -56,7 +56,7 @@ TestPage.prototype.httpSend = function () {
 			},
 			function (err, result) {
 				if (err != null) {
-					this.showError(err);
+					self.showError(err);
 				}
 				else {
 					self.showResult(result);
@@ -84,12 +84,13 @@ TestPage.prototype.socketSend = function () {
 			}
 			this.socket = this.createSocket();
 		}
+		var self = this;
 		this.socket.send(path, method, headers, fields.body, function (err, result) {
 			if (err != null) {
-				this.showError(err);
+				self.showError(err);
 			}
 			else {
-				this.showResult(result);
+				self.showResult(result);
 			}
 		});
 	}
@@ -275,8 +276,8 @@ TestPage.prototype.showResult = function (result) {
 TestPage.prototype.showError = function (err) {
 	if (err instanceof apis.errors.WebError) {
 		var status = err.status;
-		var headers = JSON.stringify(err.headers, null, '\t');
-		var body = err.data;
+		var headers = JSON.stringify(err.response.headers, null, '\t');
+		var body = err.response.data;
 		try {
 			body = JSON.stringify(body, null, '\t');
 		}

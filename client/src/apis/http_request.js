@@ -13,22 +13,26 @@ var HttpRequest = function (http, path, method, headers, data, options, cb) {
 
 	this.url = null;
 	this.body = null;
-	this.engine = null;
+	this.transport = null;
 };
 
-HttpRequest.prototype.methodHeaderName = 'X-Method';
+HttpRequest.prototype.methodHttpHeaderName = 'X-Method';
+HttpRequest.prototype.authHttpHeaderName = 'X-Auth';
+HttpRequest.prototype.authExpectedHttpHeaderName = 'X-AuthExpected';
+HttpRequest.prototype.authRenewalHttpHeaderName = 'X-AuthRenewal';
+HttpRequest.prototype.authRenewalIssuedHttpHeaderName = 'X-AuthRenewalIssued';
+HttpRequest.prototype.authRenewalMaxAgeHttpHeaderName = 'X-AuthRenewalMaxAge';
 
 HttpRequest.prototype.headersUrlKey = 'headers';
 HttpRequest.prototype.bodyUrlKey = 'body';
 HttpRequest.prototype.xdomainUrlKey = 'xdomain';
 
-HttpRequest.prototype.canUseHttpHeaders = true;
+HttpRequest.prototype.defaultContentType = 'application/json';
 
 HttpRequest.prototype.send = function () {
 	this.url = this.createUrl();
-	this.httpHeaders = this.createHttpHeaders();
 	this.body = this.createBody();
-	this.engine = this.createEngine();
+	this.transport = this.createTransport();
 	this.createCallback();
 	this.sendInternal();
 	return this;
@@ -38,22 +42,6 @@ HttpRequest.prototype.createUrl = function () {
 	var result = this.path;
 	if (this.http.baseUri) {
 		result = this.http.baseUri + this.path;
-	}
-	return result;
-};
-
-HttpRequest.prototype.createHttpHeaders = function () {
-	var result = null;
-	if (this.canUseHttpHeaders) {
-		var headers = this.headers;
-		result = headers.http || {};
-		delete headers.http;
-		if (headers.auth) {
-			result['X-Auth'] = headers.auth;
-		}
-		if (headers.authExpected) {
-			result['X-AuthExpected'] = headers.authExpected;
-		}
 	}
 	return result;
 };
@@ -69,18 +57,34 @@ HttpRequest.prototype.createBody = function () {
 	return result;
 };
 
-HttpRequest.prototype.createEngine = function () {
+HttpRequest.prototype.createTransport = function () {
 	return new XMLHttpRequest();
 };
 
 HttpRequest.prototype.createCallback = function () {
 	var self = this;
-	this.engine.onreadystatechange = function() {
-		if(self.engine.readyState == 4) {
-			self.engine.onreadystatechange = null;
-			self.handleResponse();
+	// NOTE use onload/onerror pair instead of
+	// onreadystatechange in future (will break IE8 support)
+	this.transport.onreadystatechange = function() {
+		if(self.transport.readyState == 4) {
+			self.transport.onreadystatechange = null;
+			if (self.isNetworkError()) {
+				self.handleNetworkError();
+			}
+			else {
+				self.handleResponse();
+			}
 		}
 	};
+};
+
+HttpRequest.prototype.isNetworkError = function () {
+	// NOTE works incorrectly with file:// protocol
+	return !this.transport.status;
+};
+
+HttpRequest.prototype.handleNetworkError = function () {
+	this.cb(new errors.NetworkError());
 };
 
 HttpRequest.prototype.sendInternal = function () {
@@ -93,9 +97,9 @@ HttpRequest.prototype.sendInternal = function () {
 };
 
 HttpRequest.prototype.sendGet = function () {
-	this.engine.open('GET', this.createGetUrl());
+	this.transport.open('GET', this.createGetUrl());
 	this.setHttpHeaders();
-	this.engine.send();
+	this.transport.send();
 };
 
 HttpRequest.prototype.createGetUrl = function () {
@@ -109,16 +113,6 @@ HttpRequest.prototype.createGetUrl = function () {
 
 HttpRequest.prototype.createGetUrlParts = function (opt_parts) {
 	var parts = opt_parts || [];
-	if (!this.canUseHttpHeaders) {
-		var headers = this.headers;
-		if (this.method != 'get') {
-			headers = headers || {};
-			headers.method = this.method;
-		}
-		if (headers) {
-			parts.push(this.headersUrlKey + '=' + encodeURIComponent(JSON.stringify(headers)));
-		}
-	}
 	if (this.body) {
 		parts.push(this.bodyUrlKey + '=' + encodeURIComponent(this.body));
 	}
@@ -126,33 +120,43 @@ HttpRequest.prototype.createGetUrlParts = function (opt_parts) {
 };
 
 HttpRequest.prototype.sendPost = function () {
-	var engine = this.engine;
-	engine.open('POST', this.url);
-	this.setContentTypeHeader();
-	this.setMethodHeader();
+	var transport = this.transport;
+	transport.open('POST', this.url);
+	this.setContentTypeHttpHeader();
+	this.setMethodHttpHeader();
 	this.setHttpHeaders();
-	engine.send();
+	transport.send();
 };
 
 HttpRequest.prototype.setHttpHeaders = function () {
-	if (this.canUseHttpHeaders) {
-		var headers = this.httpHeaders;
-		if (headers != null) {
-			var engine = this.engine;
-			for (var k in headers) {
-				engine.setRequestHeader(k, headers[k]);
-			}
-		}
+	var headers = this.createHttpHeaders();
+	var transport = this.transport;
+	for (var k in headers) {
+		transport.setRequestHeader(k, headers[k]);
 	}
 };
 
-HttpRequest.prototype.setContentTypeHeader = function () {
-	this.engine.setRequestHeader('Content-type', this.headers.contentType || 'application/json');
+HttpRequest.prototype.createHttpHeaders = function () {
+	var headers = this.headers;
+	var result = headers.http || {};
+	delete headers.http;
+	if (headers.auth) {
+		result[this.authHttpHeaderName] = headers.auth;
+	}
+	if (headers.authExpected) {
+		result[this.authExpectedHttpHeaderName] = headers.authExpected;
+	}
+	return result;
 };
 
-HttpRequest.prototype.setMethodHeader = function () {
+HttpRequest.prototype.setContentTypeHttpHeader = function () {
+	var contentType = this.headers.http && this.headers.http['Content-type'] || this.headers.contentType || this.defaultContentType;
+	this.transport.setRequestHeader('Content-type', contentType);
+};
+
+HttpRequest.prototype.setMethodHttpHeader = function () {
 	if (this.method != 'create') {
-		this.engine.setRequestHeader(this.methodHeaderName, this.method);
+		this.transport.setRequestHeader(this.methodHttpHeaderName, this.method);
 	}
 };
 
@@ -168,27 +172,42 @@ HttpRequest.prototype.handleResponse = function () {
 };
 
 HttpRequest.prototype.createResult = function () {
-	return {
-		transport: this.engine,
-		status: this.engine.status,
-		headers: this.extractHeaders(),
-		data: this.extractData()
+	var result = {
+		headers: this.getResultHeaders(),
+		data: this.getResultData()
 	};
+	var status = this.getResultStatus();
+	if (status != null) {
+		result.status = status;
+	}
+	var transport = this.getTransportForResult();
+	if (transport != null) {
+		result.transport = transport;
+	}
+	return result;
 };
 
-HttpRequest.prototype.extractHeaders = function () {
+HttpRequest.prototype.getTransportForResult = function () {
+	return this.transport;
+};
+
+HttpRequest.prototype.getResultStatus = function () {
+	return this.transport.status;
+};
+
+HttpRequest.prototype.getResultHeaders = function () {
 	var result = {};
-	var authRenewalToken = this.engine.getResponseHeader('X-AuthRenewal');
+	var authRenewalToken = this.transport.getResponseHeader(this.authRenewalHttpHeaderName);
 	if (authRenewalToken) {
 		var renewal = {
 			token: authRenewalToken
 		};
 		result.authRenewal = renewal;
-		var issued = this.engine.getResponseHeader('X-AuthRenewalIssued');
+		var issued = this.transport.getResponseHeader(this.authRenewalIssuedHttpHeaderName);
 		if (issued) {
 			renewal.issued = new Date(issued);
 		}
-		var maxAge = this.engine.getResponseHeader('X-AuthRenewalMaxAge');
+		var maxAge = this.transport.getResponseHeader(this.authRenewalMaxAgeHttpHeaderName);
 		if (maxAge) {
 			renewal.maxAge = parseInt(maxAge, 10);
 		}
@@ -196,8 +215,13 @@ HttpRequest.prototype.extractHeaders = function () {
 	return result;
 };
 
-HttpRequest.prototype.extractData = function () {
-	return JSON.parse(this.engine.responseText);
+HttpRequest.prototype.getResultData = function () {
+	var body = this.getResultBody();
+	return body ? JSON.parse(body) : undefined;
+};
+
+HttpRequest.prototype.getResultBody = function () {
+	return this.transport.responseText;
 };
 
 HttpRequest.prototype.extractError = function (result) {

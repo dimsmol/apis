@@ -1,5 +1,5 @@
-define(['./inherits', './http_request'],
-function (inherits, HttpRequest) {
+define(['./inherits', './http_request', './errors'],
+function (inherits, HttpRequest, errors) {
 "use strict";
 
 var JsonpRequest = function (http, path, method, headers, data, options, cb) {
@@ -7,37 +7,53 @@ var JsonpRequest = function (http, path, method, headers, data, options, cb) {
 	this.callbacks = this.getCallbacks();
 	this.scriptEl = null;
 	this.callbackId = null;
+	this.response = null;
 };
 inherits(JsonpRequest, HttpRequest);
+
+JsonpRequest.callbacks = null;
 
 JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
 JsonpRequest.prototype.xdomainValue = 'jsonp';
 JsonpRequest.prototype.jsonpCallbackUrlKey = 'callback';
 
 JsonpRequest.prototype.getCallbacks = function () {
-	var parts = this.callbacksGlobalPath.split('.');
-	var curr = window;
-	for (var i = 0; i < parts.length; i++) {
-		var part = parts[i];
-		var next = curr[part] || {};
-		curr[part] = next;
-		curr = next;
+	if (JsonpRequest.callbacks == null) {
+		var parts = this.callbacksGlobalPath.split('.');
+		var curr = window;
+		for (var i = 0; i < parts.length; i++) {
+			var part = parts[i];
+			var next = curr[part] || {};
+			curr[part] = next;
+			curr = next;
+		}
+		JsonpRequest.callbacks = curr;
 	}
-	return curr;
+	return JsonpRequest.callbacks;
 };
 
-JsonpRequest.prototype.createEngine = function () {
-	var scriptEl = document.createElement('script');
-	scriptEl.async = true;
-	this.scriptEl = scriptEl;
-	return scriptEl;
+JsonpRequest.prototype.createTransport = function () {
+	var el = document.createElement('script');
+	el.async = true;
+	var self = this;
+	el.onerror = function (ev) {
+		self.handleScriptErrorEvent(ev);
+	};
+	this.scriptEl = el;
+	return el;
+};
+
+JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
+	this.cleanup();
+	this.cb(new errors.NetworkError());
 };
 
 JsonpRequest.prototype.createCallback = function () {
 	var self = this;
 	this.callbackId = this.createCallbackId();
-	this.callbacks[this.callbackId] = function (result) {
-		self.handleResponse(result);
+	this.callbacks[this.callbackId] = function (response) {
+		self.response = response;
+		self.handleResponse();
 	};
 };
 
@@ -65,7 +81,16 @@ JsonpRequest.prototype.sendInternal = function () {
 };
 
 JsonpRequest.prototype.createGetUrlParts = function (opt_parts) {
-	var parts = JsonpRequest.super_.prototype.createGetUrlParts(opt_parts);
+	var parts = opt_parts || [];
+	var headers = this.headers;
+	if (this.method != 'get') {
+		headers = headers || {};
+		headers.method = this.method;
+	}
+	if (headers) {
+		parts.push(this.headersUrlKey + '=' + encodeURIComponent(JSON.stringify(headers)));
+	}
+	JsonpRequest.super_.prototype.createGetUrlParts(parts);
 	parts.push(this.xdomainUrlKey + '=' + this.xdomainValue);
 	parts.push(this.jsonpCallbackUrlKey + '=' + encodeURIComponent(this.createCallbackName()));
 	return parts;
@@ -75,12 +100,12 @@ JsonpRequest.prototype.createCallbackName = function () {
 	return this.callbacksGlobalPath + '.' + this.callbackId;
 };
 
-JsonpRequest.prototype.handleResponse = function (result) {
+JsonpRequest.prototype.setHttpHeaders = function () {
+};
+
+JsonpRequest.prototype.handleResponse = function () {
 	this.cleanup();
-	if (result.headers.status != null) {
-		result.status = result.headers.status;
-	}
-	this.cb(null, result);
+	JsonpRequest.super_.prototype.handleResponse.call(this);
 };
 
 JsonpRequest.prototype.cleanup = function () {
@@ -94,9 +119,27 @@ JsonpRequest.prototype.removeCallback = function () {
 
 JsonpRequest.prototype.removeScripEl = function () {
 	var scriptEl = this.scriptEl;
-	if (scriptEl.parentNode) {
+	if (scriptEl != null && scriptEl.parentNode) {
 		scriptEl.parentNode.removeChild(scriptEl);
+		this.scriptEl = null;
 	}
+};
+
+JsonpRequest.prototype.getTransportForResult = function () {
+	return null;
+};
+
+JsonpRequest.prototype.getResultStatus = function () {
+	var headers = this.getResultHeaders();
+	return headers.status;
+};
+
+JsonpRequest.prototype.getResultHeaders = function () {
+	return this.response.headers || {};
+};
+
+JsonpRequest.prototype.getResultData = function () {
+	return this.response.data;
 };
 
 
