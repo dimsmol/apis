@@ -1,13 +1,8 @@
 * client
 	* body parsing options
 	* headers translation options
-	* error handling
-		* httprequest - try{open(), send() ? }, listen 'error', 'timeout' events
-	* abort
-	* timeout
-	* review frame
-	* batch
 	* fix request id for sockets
+	* batch
 
 ## WARN
 

@@ -17,6 +17,11 @@ JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
 JsonpRequest.prototype.xdomainValue = 'jsonp';
 JsonpRequest.prototype.jsonpCallbackUrlKey = 'callback';
 
+JsonpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.clearTimeout();
+};
+
 JsonpRequest.prototype.getCallbacks = function () {
 	if (JsonpRequest.callbacks == null) {
 		var parts = this.callbacksGlobalPath.split('.');
@@ -45,7 +50,9 @@ JsonpRequest.prototype.createTransport = function () {
 
 JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
 	this.cleanup();
-	this.cb(new errors.NetworkError());
+	if (!this.isAborted) {
+		this.cb(new errors.NetworkError());
+	}
 };
 
 JsonpRequest.prototype.createCallback = function () {
@@ -105,10 +112,13 @@ JsonpRequest.prototype.setHttpHeaders = function () {
 
 JsonpRequest.prototype.handleResponse = function () {
 	this.cleanup();
-	JsonpRequest.super_.prototype.handleResponse.call(this);
+	if (!this.isAborted) {
+		JsonpRequest.super_.prototype.handleResponse.call(this);
+	}
 };
 
 JsonpRequest.prototype.cleanup = function () {
+	this.clearTimeout();
 	this.removeCallback();
 	this.removeScripEl();
 };

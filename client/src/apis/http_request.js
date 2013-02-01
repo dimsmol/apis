@@ -14,6 +14,8 @@ var HttpRequest = function (http, path, method, headers, data, options, cb) {
 	this.url = null;
 	this.body = null;
 	this.transport = null;
+	this.isAborted = false;
+	this.timeout = null;
 };
 
 HttpRequest.prototype.methodHttpHeaderName = 'X-Method';
@@ -30,12 +32,43 @@ HttpRequest.prototype.xdomainUrlKey = 'xdomain';
 HttpRequest.prototype.defaultContentType = 'application/json';
 
 HttpRequest.prototype.send = function () {
+	this.createTimeout();
 	this.url = this.createUrl();
 	this.body = this.createBody();
 	this.transport = this.createTransport();
 	this.createCallback();
 	this.sendInternal();
 	return this;
+};
+
+HttpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.clearTimeout();
+	if (this.transport != null) {
+		this.transport.onreadystatechange = null;
+		this.transport.abort();
+	}
+};
+
+HttpRequest.prototype.createTimeout = function () {
+	var timeout = this.options.timeout;
+	if (timeout != null) {
+		var self = this;
+		this.timeout = setTimeout(function () {
+			self.handleTimeout();
+		}, timeout);
+	}
+};
+
+HttpRequest.prototype.handleTimeout = function () {
+	this.abort();
+	this.cb(new errors.TimeoutError());
+};
+
+HttpRequest.prototype.clearTimeout = function () {
+	if (this.timeout != null) {
+		clearTimeout(this.timeout);
+	}
 };
 
 HttpRequest.prototype.createUrl = function () {
@@ -84,6 +117,7 @@ HttpRequest.prototype.isNetworkError = function () {
 };
 
 HttpRequest.prototype.handleNetworkError = function () {
+	this.clearTimeout();
 	this.cb(new errors.NetworkError());
 };
 
@@ -125,7 +159,7 @@ HttpRequest.prototype.sendPost = function () {
 	this.setContentTypeHttpHeader();
 	this.setMethodHttpHeader();
 	this.setHttpHeaders();
-	transport.send();
+	transport.send(this.body);
 };
 
 HttpRequest.prototype.setHttpHeaders = function () {
@@ -161,6 +195,7 @@ HttpRequest.prototype.setMethodHttpHeader = function () {
 };
 
 HttpRequest.prototype.handleResponse = function () {
+	this.clearTimeout();
 	var result = this.createResult();
 	var err = this.extractError(result);
 	if (err != null) {

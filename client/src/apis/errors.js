@@ -30,9 +30,18 @@ inherits(NetworkError, ErrorBase);
 NetworkError.prototype.name = 'NetworkError';
 
 
+var TimeoutError = function () {
+	ErrorBase.call(this);
+};
+inherits(TimeoutError, ErrorBase);
+
+TimeoutError.prototype.name = 'TimeoutError';
+
+
 return {
 	WebError: WebError,
-	NetworkError: NetworkError
+	NetworkError: NetworkError,
+	TimeoutError: TimeoutError
 };
 
 });
