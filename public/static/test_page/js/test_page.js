@@ -50,7 +50,7 @@ TestPage.prototype.httpSend = function () {
 			fields.path,
 			fields.method,
 			fields.headers,
-			fields.body,
+			fields.data,
 			{
 				crossDomain: fields.xdomain == 'none' ? null : fields.xdomain
 			},
@@ -85,7 +85,7 @@ TestPage.prototype.socketSend = function () {
 			this.socket = this.createSocket();
 		}
 		var self = this;
-		this.socket.send(path, method, headers, fields.body, function (err, result) {
+		this.socket.send(path, method, headers, fields.data, function (err, result) {
 			if (err != null) {
 				self.showError(err);
 			}
@@ -245,7 +245,7 @@ TestPage.prototype.collectFields = function (cb) {
 		path: this.requestPathField.value,
 		method: this.requestMethodField.value,
 		headers: this.jsonval(this.requestHeadersField, this.requestHeadersFieldGroup),
-		body: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
+		data: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
 		xdomain: this.requestXdomainField.value == 'none' ? null : this.requestXdomainField.value
 	};
 };
