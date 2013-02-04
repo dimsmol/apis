@@ -65,7 +65,7 @@ JsonpRequest.prototype.createCallback = function () {
 };
 
 JsonpRequest.prototype.createCallbackId = function () {
-	var base = 'cb' + Date.now();
+	var base = 'cb' + (new Date.getTime());
 	var i = 0;
 	var result = base;
 	while (result in this.callbacks) {

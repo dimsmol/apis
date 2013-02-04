@@ -38,10 +38,24 @@ inherits(TimeoutError, ErrorBase);
 TimeoutError.prototype.name = 'TimeoutError';
 
 
+var ConnectionCloseError = function (closeEvent) {
+	ErrorBase.call(this);
+	this.closeEvent = closeEvent;
+};
+inherits(ConnectionCloseError, ErrorBase);
+
+ConnectionCloseError.prototype.name = 'ConnectionCloseError';
+
+ConnectionCloseError.prototype.getMessage = function () {
+	return this.closeEvent.reason;
+};
+
+
 return {
 	WebError: WebError,
 	NetworkError: NetworkError,
-	TimeoutError: TimeoutError
+	TimeoutError: TimeoutError,
+	ConnectionCloseError: ConnectionCloseError
 };
 
 });

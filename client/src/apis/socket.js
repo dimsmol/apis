@@ -1,5 +1,5 @@
-define([],
-function () {
+define(['./errors'],
+function (errors) {
 "use strict";
 
 var Socket = function (opt_baseUri, opt_protocols) {
@@ -13,15 +13,24 @@ var Socket = function (opt_baseUri, opt_protocols) {
 	this.customWebSocketClass = null;
 
 	this.socket = null;
-	this.requestId = 0;
-	this.callbacks = {};
+	this.requests = {};
+
+	this.abortFunc = this.createAbortFunc();
 };
 
 Socket.prototype.prefix = '/socket';
 Socket.prototype.headerSeparator = '\n\n';
+Socket.prototype.defaultTimeout = null;
 
-Socket.prototype.getWebSocketClass = function() {
+Socket.prototype.getWebSocketClass = function () {
 	return this.customWebSocketClass || WebSocket;
+};
+
+Socket.prototype.createAbortFunc = function () {
+	var self = this;
+	return function () {
+		self.handleAbort(this);
+	};
 };
 
 Socket.prototype.createSocket = function () {
@@ -70,6 +79,10 @@ Socket.prototype.connect = function (opt_cb) {
 		this.socket.addEventListener('message', function (ev) {
 			self.handleMessage(ev);
 		});
+
+		this.socket.addEventListener('close', function (ev) {
+			self.handleClose(ev);
+		});
 	}
 };
 
@@ -77,13 +90,39 @@ Socket.prototype.handleMessage = function (ev) {
 	var result = this.parse(ev.data);
 	var requestId = (result.headers != null ? result.headers.requestId : null);
 	if (requestId != null) {
-		var cb = this.callbacks[requestId];
-		if (cb) {
-			cb(result);
+		var request = this.requests[requestId];
+		if (request) {
+			var cb = request.cb;
+			this.clearRequest(request, requestId);
+			var err = this.extractError(result);
+			if (err != null) {
+				cb(err);
+			}
+			else {
+				cb(null, result);
+			}
 		}
 	}
 	else if (this.onMessage != null) {
 		this.onMessage(result);
+	}
+};
+
+Socket.prototype.createRequestId = function () {
+	var base = '' + (new Date().getTime());
+	var i = 0;
+	var result = base;
+	while (result in this.requests) {
+		result = base + '_' + (i++);
+	}
+	return result;
+};
+
+Socket.prototype.clearRequest = function (request) {
+	delete this.requests[request.id];
+	var timeout = request.timeout;
+	if (timeout != null) {
+		clearTimeout(timeout);
 	}
 };
 
@@ -93,29 +132,30 @@ Socket.prototype.close = function () {
 	}
 };
 
-Socket.prototype.send = function(path, method, headers, body, opt_options, opt_cb) {
+Socket.prototype.send = function (path, method, headers, body, opt_options, opt_cb) {
 	var self = this;
 	this.connect(function () {
 		self.sendInternal(path, method, headers, body, opt_options, opt_cb);
 	});
 };
 
-Socket.prototype.sendInternal = function(path, method, headers, body, opt_options, opt_cb) {
+Socket.prototype.sendInternal = function (path, method, headers, data, opt_options, opt_cb) {
 	headers = headers || {};
 
 	headers.method = method;
 	headers.path = path;
 
+	var request;
 	if (opt_cb) {
-		var requestId = (headers.requestId == null ? ++this.requestId : headers.requestId);
-		this.callbacks[requestId] = opt_cb;
-		headers.requestId = requestId;
+		request = this.createRequest(opt_options, opt_cb);
+		headers.requestId = request.id;
 	}
 
-	if (body === undefined) {
+	var body;
+	if (data === undefined) {
 		body = '';
 	}
-	else if (body == null || body.constructor !== String) {
+	else {
 		body = JSON.stringify(body);
 	}
 
@@ -125,9 +165,55 @@ Socket.prototype.sendInternal = function(path, method, headers, body, opt_option
 	].join(this.headerSeparator);
 
 	this.socket.send(msg);
+	return request;
 };
 
-Socket.prototype.parse = function(message) {
+Socket.prototype.createRequest = function (options, cb) {
+	var requestId = this.createRequestId();
+	var request = {
+		id: requestId,
+		cb: cb,
+		options: options,
+		abort: this.abortFunc
+	};
+	request.timeout = this.createTimeout(request);
+	this.requests[requestId] = request;
+	return request;
+};
+
+Socket.prototype.createTimeout = function (request) {
+	var options = request.options;
+	var result = null;
+	var timeout = (options != null && options.timeout != null ? options.timeout : this.defaultTimeout);
+	if (timeout != null) {
+		var self = this;
+		result = setTimeout(function () {
+			self.handleTimeout(request);
+		}, timeout);
+	}
+	return result;
+};
+
+Socket.prototype.handleTimeout = function (request) {
+	var cb = request.cb;
+	this.clearRequest(request);
+	cb(new errors.TimeoutError());
+};
+
+Socket.prototype.handleAbort = function (request) {
+	this.clearRequest(request);
+};
+
+Socket.prototype.handleClose = function (ev) {
+	for (var k in this.requests) {
+		var request = this.requests[k];
+		var cb = request.cb;
+		this.clearRequest(request);
+		cb(new errors.ConnectionCloseError(ev));
+	}
+};
+
+Socket.prototype.parse = function (message) {
 	var sepPos = message.indexOf(this.headerSeparator);
 	var headersStr = message.substring(0, sepPos);
 	var body = message.substring(sepPos + this.headerSeparator.length);
@@ -146,8 +232,21 @@ Socket.prototype.parse = function(message) {
 	return result;
 };
 
-Socket.prototype.parseBody = function(body) {
-	return JSON.parse(body);
+Socket.prototype.parseBody = function (body) {
+	var result;
+	if (body) {
+		result = JSON.parse(body);
+	}
+	return result;
+};
+
+Socket.prototype.extractError = function (result) {
+	var status = result.status;
+	var err = null;
+	if (status != 200 && status != 204) {
+		err = new errors.WebError(result);
+	}
+	return err;
 };
 
 

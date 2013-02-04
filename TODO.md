@@ -1,8 +1,12 @@
 * client
 	* body parsing options
 	* headers translation options
-	* fix request id for sockets
-	* batch
+	* think about moving errors extraction to some common area (lib, etc?)
+	* fix *EventListener issues
+
+* think about combining all apis headers into single http header - be careful, can have single row length issues
+* remove framerequest
+* cleanup http mechanics
 
 ## WARN
 
@@ -21,6 +25,7 @@
 ## batch
 
 * review batches (possibly broken)
+* add batches support to client library
 * ability to fetch less data than used in 'apply' (?)
 * optionally fail on error
 

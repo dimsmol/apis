@@ -85,12 +85,12 @@ TestPage.prototype.socketSend = function () {
 			this.socket = this.createSocket();
 		}
 		var self = this;
-		this.socket.send(path, method, headers, fields.data, function (err, result) {
+		this.socket.send(path, method, headers, fields.data, null, function (err, response) {
 			if (err != null) {
 				self.showError(err);
 			}
 			else {
-				self.showResult(result);
+				self.showResult(response);
 			}
 		});
 	}
