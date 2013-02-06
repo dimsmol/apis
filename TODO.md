@@ -3,10 +3,13 @@
 	* headers translation options
 	* think about moving errors extraction to some common area (lib, etc?)
 	* fix *EventListener issues
+	* move testPage to client/
 
 * think about combining all apis headers into single http header - be careful, can have single row length issues
 * remove framerequest
 * cleanup http mechanics
+
+* make Loader commands set easier to extend
 
 ## WARN
 
