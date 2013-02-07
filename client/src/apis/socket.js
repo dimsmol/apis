@@ -132,10 +132,10 @@ Socket.prototype.close = function () {
 	}
 };
 
-Socket.prototype.send = function (path, method, headers, body, opt_options, opt_cb) {
+Socket.prototype.send = function (path, method, headers, data, opt_options, opt_cb) {
 	var self = this;
 	this.connect(function () {
-		self.sendInternal(path, method, headers, body, opt_options, opt_cb);
+		self.sendInternal(path, method, headers, data, opt_options, opt_cb);
 	});
 };
 
@@ -156,7 +156,7 @@ Socket.prototype.sendInternal = function (path, method, headers, data, opt_optio
 		body = '';
 	}
 	else {
-		body = JSON.stringify(body);
+		body = JSON.stringify(data);
 	}
 
 	var msg = [
