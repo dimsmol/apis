@@ -3,13 +3,14 @@
 	* headers translation options
 	* think about moving errors extraction to some common area (lib, etc?)
 	* fix *EventListener issues
-	* move testPage to client/
 
 * think about combining all apis headers into single http header - be careful, can have single row length issues
 * remove framerequest
 * cleanup http mechanics
+* remove Connections, DoubleDict, etc.
+* make event names camelCase ? (check guidelines)
 
-* make Loader commands set easier to extend
+* make Loader command set easier to extend
 
 ## WARN
 
@@ -21,8 +22,7 @@
 
 ## test page
 
-* move to separate project
-* use ace for highlighting (?)
+* move testPage to client/
 * ability to copy/save/load requests
 
 ## batch
@@ -47,12 +47,11 @@
 	* actively use ctx during resolution
 	* possibly move result functionality somewhere
 
-* add fields handler
-* add range (skip, limit) handler
+* add fields handler ?
+* add range (skip, limit) handler ?
 * add tls handler
 
 * make standard 'options' handler more informative (provide contract?)
-* get rid of opt_connectionsToExclude in send - use iterators or whatever
 
 ## stats
 
