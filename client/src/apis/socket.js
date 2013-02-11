@@ -2,8 +2,9 @@ define(['./errors'],
 function (errors) {
 "use strict";
 
-var Socket = function (opt_baseUri, opt_protocols) {
-	this.baseUri = opt_baseUri;
+var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
+	this.basePath = opt_basePath;
+	this.socketUri = opt_socketUri || this.defaultSocketUri;
 	this.protocols = opt_protocols;
 
 	this.onSocketCreated = null;
@@ -18,7 +19,7 @@ var Socket = function (opt_baseUri, opt_protocols) {
 	this.abortFunc = this.createAbortFunc();
 };
 
-Socket.prototype.prefix = '/socket';
+Socket.prototype.defaultSocketUri = '/socket';
 Socket.prototype.headerSeparator = '\n\n';
 Socket.prototype.defaultTimeout = null;
 
@@ -34,13 +35,8 @@ Socket.prototype.createAbortFunc = function () {
 };
 
 Socket.prototype.createSocket = function () {
-	var uri = this.prefix;
-	if (this.baseUri) {
-		uri = this.baseUri + uri;
-	}
-
 	var WebSocketClass = this.getWebSocketClass();
-	return new WebSocketClass(uri, this.protocols);
+	return new WebSocketClass(this.socketUri, this.protocols);
 };
 
 Socket.prototype.connect = function (opt_cb) {
@@ -143,7 +139,7 @@ Socket.prototype.sendInternal = function (path, method, headers, data, opt_optio
 	headers = headers || {};
 
 	headers.method = method;
-	headers.path = path;
+	headers.path = this.getEffectivePath(path);
 
 	var request;
 	if (opt_cb) {
@@ -166,6 +162,14 @@ Socket.prototype.sendInternal = function (path, method, headers, data, opt_optio
 
 	this.socket.send(msg);
 	return request;
+};
+
+Socket.prototype.getEffectivePath = function (path) {
+	var result = path;
+	if (this.basePath) {
+		result = this.basePath + path;
+	}
+	return result;
 };
 
 Socket.prototype.createRequest = function (options, cb) {
