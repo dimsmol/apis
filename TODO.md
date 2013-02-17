@@ -5,7 +5,6 @@
 	* fix *EventListener issues
 
 * think about combining all apis headers into single http header - be careful, can have single row length issues
-* remove framerequest
 * cleanup http mechanics
 * make event names camelCase ? (check guidelines)
 
