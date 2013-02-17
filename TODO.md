@@ -7,7 +7,6 @@
 * think about combining all apis headers into single http header - be careful, can have single row length issues
 * remove framerequest
 * cleanup http mechanics
-* remove Connections, DoubleDict, etc.
 * make event names camelCase ? (check guidelines)
 
 * make Loader command set easier to extend

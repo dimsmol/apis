@@ -37,7 +37,6 @@ For any app, if it cannot be found, apis default will be used.
 	* core.logging.engines.syslog - syslog logging engine
 * core.mechanics.web - web mechanics, enables responding on HTTP requests
 * core.mechanics.socket - socket mechanics, enables web socket communications, runs on top of web mechanics
-	* core.mechanics.socket.connections - web socket connections tracker
 	* core.mechanics.socket.stat - web socket statistics
 
 * core.settings - settings, will be searched at cwd()+'/lib/settings'
