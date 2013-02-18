@@ -65,7 +65,7 @@ JsonpRequest.prototype.createCallback = function () {
 };
 
 JsonpRequest.prototype.createCallbackId = function () {
-	var base = 'cb' + (new Date.getTime());
+	var base = 'cb' + (new Date().getTime());
 	var i = 0;
 	var result = base;
 	while (result in this.callbacks) {
@@ -97,7 +97,7 @@ JsonpRequest.prototype.createGetUrlParts = function (opt_parts) {
 	if (headers) {
 		parts.push(this.headersUrlKey + '=' + encodeURIComponent(JSON.stringify(headers)));
 	}
-	JsonpRequest.super_.prototype.createGetUrlParts(parts);
+	JsonpRequest.super_.prototype.createGetUrlParts.call(this, parts);
 	parts.push(this.xdomainUrlKey + '=' + this.xdomainValue);
 	parts.push(this.jsonpCallbackUrlKey + '=' + encodeURIComponent(this.createCallbackName()));
 	return parts;
