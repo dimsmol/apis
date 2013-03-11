@@ -6,6 +6,7 @@
 
 * think about combining all apis headers into single http header - be careful, can have single row length issues
 * make event names camelCase ? (check guidelines)
+* make ids camelCase on test page
 
 * make Loader command set easier to extend
 
