@@ -1,3 +1,5 @@
+* add response to socket on critical error if has requestId
+
 * client
 	* body parsing options
 	* headers translation options
