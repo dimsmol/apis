@@ -15,10 +15,10 @@ Handler interface:
 
 ## Test page
 
-To get test page on `/test_page/index.html` add to your contract:
+To get test page on `/test_page` add to your contract:
 
 ```js
-res.subpaths('/test_page', st(apis.tools.testPage.staticPath))
+cont('/test', [apis.testPage.contract])
 ```
 
 ## Apps known by Loader

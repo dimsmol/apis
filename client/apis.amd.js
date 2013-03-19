@@ -1,357 +1,9 @@
 ;(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
-"use strict";
-var TestPage = require('./test_page');
-
-
-var testPage = new TestPage();
-window.addEventListener('load', function () {
-	testPage.initUi();
+define('apis', [], function () {
+	return require('../../lib/client');
 });
 
-},{"./test_page":2}],2:[function(require,module,exports){
-"use strict";
-var apis = require('../../client');
-
-
-var TestPage = function () {
-	this.socket = null;
-	this.http = null;
-};
-
-TestPage.prototype.createHttp = function () {
-	return new apis.Http(this.requestBaseField.value);
-};
-
-TestPage.prototype.createSocket = function () {
-	var result = new apis.Socket(this.requestBaseField.value);
-	result.customWebSocketClass = SockJS;
-	var self = this;
-	result.onSocketCreated = function (socket) {
-		socket.addEventListener('open', function (ev) {
-			self.onSocketOpen(ev);
-		});
-		socket.addEventListener('close', function (ev) {
-			self.onSocketClose(ev);
-		});
-	};
-	result.onMessage = function (result) {
-		self.showResult(result);
-	};
-	return result;
-};
-
-TestPage.prototype.httpSend = function () {
-	this.clearResult();
-
-	var fields = this.collectFields();
-	if (fields.headers && this.requestSmartHeadersField.checked) {
-		this.applyHttpSmartHeaders(fields);
-	}
-
-	if (!fields.path) {
-		this.setPathRequiredErr();
-	}
-	else {
-		if (this.http == null || this.http.baseUri != this.requestBaseField.value) {
-			this.http = this.createHttp();
-		}
-		var funcName = (fields.xdomain == 'none' ? 'send' : fields.xdomain);
-		var self = this;
-		var req = this.http.send(
-			fields.path,
-			fields.method,
-			fields.headers,
-			fields.data,
-			{
-				crossDomain: fields.xdomain == 'none' ? null : fields.xdomain
-			},
-			function (err, result) {
-				if (err != null) {
-					self.showError(err);
-				}
-				else {
-					self.showResult(result);
-				}
-			}
-		);
-	}
-};
-
-TestPage.prototype.socketSend = function () {
-	this.clearResult();
-	var fields = this.collectFields();
-
-	var headers = fields.headers || {};
-	var path = headers.path || fields.path;
-	var method = headers.method || fields.method;
-
-	if (!path) {
-		this.setPathRequiredErr();
-	}
-	else {
-		if (this.socket == null || this.socket.baseUri != this.requestBaseField.value) {
-			if (this.socket != null) {
-				this.socket.close();
-			}
-			this.socket = this.createSocket();
-		}
-		var self = this;
-		this.socket.send(path, method, headers, fields.data, null, function (err, response) {
-			if (err != null) {
-				self.showError(err);
-			}
-			else {
-				self.showResult(response);
-			}
-		});
-	}
-};
-
-TestPage.prototype.socketConnect = function (ev) {
-	if (this.socket == null) {
-		this.socket = this.createSocket();
-	}
-	var readyState = (this.socket.socket == null ? null : this.socket.socket.readyState);
-	switch (readyState) {
-		case null:
-		case 3: // closing
-		case 4: // closed
-			this.socket.connect();
-			break;
-		case 1:
-			this.socket.close();
-			break;
-	}
-};
-
-TestPage.prototype.onSocketOpen = function (ev) {
-	this.socketConnectButton.innerText = 'disconnect';
-};
-
-TestPage.prototype.onSocketClose = function (ev) {
-	this.socketConnectButton.innerText = 'connect';
-};
-
-TestPage.prototype.onSocketMessage = function (e, data) {
-	this.showResult(
-		data.headers.status,
-		data.headers,
-		data.body
-	);
-};
-
-TestPage.prototype.initUi = function () {
-	this.requestBaseField = this.byId('request-base');
-	this.requestPathField = this.byId('request-path');
-	this.requestPathFieldGroup = this.byId('request-path-group');
-	this.requestMethodField = this.byId('request-method');
-	this.requestHeadersField = this.byId('request-headers');
-	this.requestHeadersFieldGroup = this.byId('request-headers-group');
-	this.requestBodyField = this.byId('request-body');
-	this.requestBodyFieldGroup = this.byId('request-body-group');
-	this.requestXdomainField = this.byId('request-xdomain');
-
-	this.requestSmartHeadersField = this.byId('request-smart-headers');
-	this.requestRawBodyField = this.byId('request-raw-body');
-
-	this.socketConnectButton = this.byId('socket-connect');
-	this.socketSendButton = this.byId('socket-send');
-	this.httpSendButton = this.byId('http-send');
-
-	this.responseHeadersField = this.byId('response-headers');
-	this.responseBodyField = this.byId('response-body');
-
-	this.clearErrOnChange(this.requestPathField, this.requestPathFieldGroup);
-	this.clearErrOnChange(this.requestHeadersField, this.requestHeadersFieldGroup);
-	this.clearErrOnChange(this.requestBodyField, this.requestBodyFieldGroup);
-
-	this.fixTabs(this.requestHeadersField);
-	this.fixTabs(this.requestBodyField);
-	this.fixTabs(this.responseHeadersField);
-	this.fixTabs(this.responseBodyField);
-
-	this.initButtons();
-	this.initKeyHandler();
-};
-
-TestPage.prototype.byId = function (id) {
-	return document.getElementById(id);
-};
-
-TestPage.prototype.fixTabs = function (el) {
-	el.addEventListener('keydown', function (e) {
-		if(e.keyCode == 9 && !e.altKey && !e.ctrlKey && !e.shiftKey) {
-			var start = this.selectionStart;
-			var end = this.selectionEnd;
-
-			var value = this.value;
-			this.value = [
-				value.substring(0, start),
-				'\t',
-				value.substring(end)
-			].join('');
-
-			this.selectionStart = this.selectionEnd = start + 1;
-			e.preventDefault();
-		}
-	});
-};
-
-TestPage.prototype.setErr = function (el, errEl, msg) {
-	el.title = msg;
-	errEl.classList.add('error');
-	el.focus();
-};
-
-TestPage.prototype.clearErr = function (el, errEl) {
-	el.title = null;
-	errEl.classList.remove('error');
-};
-
-TestPage.prototype.clearErrOnChange = function (el, errEl) {
-	var self = this;
-	var clearFunc = function () {
-		self.clearErr(el, errEl);
-	};
-	el.addEventListener('change', clearFunc);
-	el.addEventListener('keydown', clearFunc);
-	el.addEventListener('mousedown', clearFunc);
-	el.addEventListener('blur', clearFunc);
-};
-
-TestPage.prototype.setPathRequiredErr = function () {
-	this.setErr(this.requestPathField, this.requestPathFieldGroup, 'path is required');
-};
-
-TestPage.prototype.jsonval = function (el, errEl) {
-	var v = el.value;
-	var result;
-	if (v) {
-		var str = '"use strict";\nreturn ' + v;
-		try {
-			result = (new Function(str))();
-		}
-		catch (err) {
-			this.setErr(el, errEl, err.message);
-			throw err;
-		}
-	}
-	return result;
-};
-
-TestPage.prototype.applyHttpSmartHeaders = function (fields) {
-	var headers = fields.headers;
-	if (headers.method) {
-		fields.method = headers.method;
-		delete headers.method;
-	}
-	if (headers.path) {
-		fields.path = headers.path;
-		delete headers.path;
-	}
-};
-
-TestPage.prototype.collectFields = function (cb) {
-	return {
-		path: this.requestPathField.value,
-		method: this.requestMethodField.value,
-		headers: this.jsonval(this.requestHeadersField, this.requestHeadersFieldGroup),
-		data: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
-		xdomain: this.requestXdomainField.value == 'none' ? null : this.requestXdomainField.value
-	};
-};
-
-TestPage.prototype.clearResult = function (headers, body) {
-	this.responseHeadersField.value = '';
-	this.responseBodyField.value = '';
-};
-
-TestPage.prototype.showResult = function (result) {
-	var status = result.status;
-	var headers = JSON.stringify(result.headers, null, '\t');
-	var body = result.data;
-	try {
-		body = JSON.stringify(body, null, '\t');
-	}
-	catch (err) { // to be ready to non-json responses
-	}
-
-	if (result.transport != null) {
-		headers = headers + '\n\n' + result.transport.getAllResponseHeaders();
-	}
-
-	this.responseHeadersField.value = headers;
-	this.responseBodyField.value = ['Response code is ', status, '\n', body].join('');
-};
-
-TestPage.prototype.showError = function (err) {
-	if (err instanceof apis.errors.WebError) {
-		var status = err.status;
-		var headers = JSON.stringify(err.response.headers, null, '\t');
-		var body = err.response.data;
-		try {
-			body = JSON.stringify(body, null, '\t');
-		}
-		catch (err) { // to be ready to non-json responses
-		}
-
-		this.responseHeadersField.value = headers;
-		this.responseBodyField.value = ['Response code is ', status, '\n', body].join('');
-	}
-	else {
-		this.responseHeadersField.value = '';
-		this.responseBodyField.value = (err.getStackTrace ? err.getStackTrace() || err.stack : err.stack) || err;
-	}
-};
-
-TestPage.prototype.initButtons = function (headers, body) {
-	var self = this;
-
-	this.socketConnectButton.addEventListener('click', function () {
-		self.socketConnect();
-	});
-
-	this.socketSendButton.addEventListener('click', function () {
-		self.socketSend();
-	});
-
-	this.httpSendButton.addEventListener('click', function () {
-		self.httpSend();
-	});
-};
-
-TestPage.prototype.initKeyHandler = function () {
-	var self = this;
-	window.addEventListener('keypress', function (e) {
-		if (e.keyCode == 13) {
-			var tag = e.srcElement.tagName;
-			if (tag != 'BUTTON') {
-				var ok = true;
-				if (tag == 'TEXTAREA') {
-					if (e.ctrlKey) {
-						e.preventDefault();
-					}
-					else {
-						ok = false;
-					}
-				}
-				if (ok) {
-					if (e.altKey) {
-						self.socketSendButton.click();
-					}
-					else {
-						self.httpSendButton.click();
-					}
-				}
-			}
-		}
-	});
-};
-
-
-module.exports = TestPage;
-
-},{"../../client":3}],3:[function(require,module,exports){
+},{"../../lib/client":2}],2:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 var Http = require('./http');
@@ -368,7 +20,7 @@ module.exports = {
 	Socket: Socket
 };
 
-},{"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":7,"./socket":8}],5:[function(require,module,exports){
+},{"./errors":3,"./http":4,"./http_request":5,"./jsonp_request":6,"./socket":7}],4:[function(require,module,exports){
 "use strict";
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
@@ -406,7 +58,7 @@ Http.prototype.sendJsonp = function (path, method, headers, data, options, cb) {
 
 module.exports = Http;
 
-},{"./http_request":6,"./jsonp_request":7}],6:[function(require,module,exports){
+},{"./http_request":5,"./jsonp_request":6}],5:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 
@@ -680,7 +332,7 @@ HttpRequest.prototype.extractError = function (result) {
 
 module.exports = HttpRequest;
 
-},{"./errors":4}],8:[function(require,module,exports){
+},{"./errors":3}],7:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 
@@ -939,7 +591,69 @@ Socket.prototype.extractError = function (result) {
 
 module.exports = Socket;
 
-},{"./errors":4}],7:[function(require,module,exports){
+},{"./errors":3}],3:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+
+
+var WebError = function (response) {
+	ErrorBase.call(this);
+
+	this.response = response;
+
+	this.status = response.status;
+	var data = response.data || {};
+	this._message = data.message;
+	this.status = response.status;
+	this.code = data.code;
+};
+inherits(WebError, ErrorBase);
+
+WebError.prototype.name = 'WebError';
+
+WebError.prototype.getMessage = function () {
+	return this._message;
+};
+
+
+var NetworkError = function () {
+	ErrorBase.call(this);
+};
+inherits(NetworkError, ErrorBase);
+
+NetworkError.prototype.name = 'NetworkError';
+
+
+var TimeoutError = function () {
+	ErrorBase.call(this);
+};
+inherits(TimeoutError, ErrorBase);
+
+TimeoutError.prototype.name = 'TimeoutError';
+
+
+var ConnectionCloseError = function (closeEvent) {
+	ErrorBase.call(this);
+	this.closeEvent = closeEvent;
+};
+inherits(ConnectionCloseError, ErrorBase);
+
+ConnectionCloseError.prototype.name = 'ConnectionCloseError';
+
+ConnectionCloseError.prototype.getMessage = function () {
+	return this.closeEvent.reason;
+};
+
+
+module.exports = {
+	WebError: WebError,
+	NetworkError: NetworkError,
+	TimeoutError: TimeoutError,
+	ConnectionCloseError: ConnectionCloseError
+};
+
+},{"nerr/lib/error_base":8,"inh":9}],6:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 var HttpRequest = require('./http_request');
@@ -1099,69 +813,7 @@ JsonpRequest.prototype.getResultData = function () {
 
 module.exports = JsonpRequest;
 
-},{"./http_request":6,"./errors":4,"inh":9}],4:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-
-
-var WebError = function (response) {
-	ErrorBase.call(this);
-
-	this.response = response;
-
-	this.status = response.status;
-	var data = response.data || {};
-	this._message = data.message;
-	this.status = response.status;
-	this.code = data.code;
-};
-inherits(WebError, ErrorBase);
-
-WebError.prototype.name = 'WebError';
-
-WebError.prototype.getMessage = function () {
-	return this._message;
-};
-
-
-var NetworkError = function () {
-	ErrorBase.call(this);
-};
-inherits(NetworkError, ErrorBase);
-
-NetworkError.prototype.name = 'NetworkError';
-
-
-var TimeoutError = function () {
-	ErrorBase.call(this);
-};
-inherits(TimeoutError, ErrorBase);
-
-TimeoutError.prototype.name = 'TimeoutError';
-
-
-var ConnectionCloseError = function (closeEvent) {
-	ErrorBase.call(this);
-	this.closeEvent = closeEvent;
-};
-inherits(ConnectionCloseError, ErrorBase);
-
-ConnectionCloseError.prototype.name = 'ConnectionCloseError';
-
-ConnectionCloseError.prototype.getMessage = function () {
-	return this.closeEvent.reason;
-};
-
-
-module.exports = {
-	WebError: WebError,
-	NetworkError: NetworkError,
-	TimeoutError: TimeoutError,
-	ConnectionCloseError: ConnectionCloseError
-};
-
-},{"nerr/lib/error_base":10,"inh":9}],9:[function(require,module,exports){
+},{"./http_request":5,"./errors":3,"inh":9}],9:[function(require,module,exports){
 "use strict";
 var inherits = function(childCtor, parentCtor) {
 	var TempCtor = function () {};
@@ -1174,7 +826,7 @@ var inherits = function(childCtor, parentCtor) {
 
 module.exports = inherits;
 
-},{}],10:[function(require,module,exports){
+},{}],8:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 
@@ -1240,7 +892,7 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inh":11}],11:[function(require,module,exports){
+},{"inh":10}],10:[function(require,module,exports){
 "use strict";
 var inherits = function(childCtor, parentCtor) {
 	var TempCtor = function () {};
