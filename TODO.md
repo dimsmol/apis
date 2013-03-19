@@ -12,6 +12,10 @@
 
 * make Loader command set easier to extend
 
+## browserify
+
+* use -r path:dst when will be fixed (instead of client/expose/browserify.js)
+
 ## WARN
 
 * extends http.IncomingMessage.prototype (just like express 2.X does)
