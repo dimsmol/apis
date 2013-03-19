@@ -939,7 +939,69 @@ Socket.prototype.extractError = function (result) {
 
 module.exports = Socket;
 
-},{"./errors":4}],7:[function(require,module,exports){
+},{"./errors":4}],4:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+
+
+var WebError = function (response) {
+	ErrorBase.call(this);
+
+	this.response = response;
+
+	this.status = response.status;
+	var data = response.data || {};
+	this._message = data.message;
+	this.status = response.status;
+	this.code = data.code;
+};
+inherits(WebError, ErrorBase);
+
+WebError.prototype.name = 'WebError';
+
+WebError.prototype.getMessage = function () {
+	return this._message;
+};
+
+
+var NetworkError = function () {
+	ErrorBase.call(this);
+};
+inherits(NetworkError, ErrorBase);
+
+NetworkError.prototype.name = 'NetworkError';
+
+
+var TimeoutError = function () {
+	ErrorBase.call(this);
+};
+inherits(TimeoutError, ErrorBase);
+
+TimeoutError.prototype.name = 'TimeoutError';
+
+
+var ConnectionCloseError = function (closeEvent) {
+	ErrorBase.call(this);
+	this.closeEvent = closeEvent;
+};
+inherits(ConnectionCloseError, ErrorBase);
+
+ConnectionCloseError.prototype.name = 'ConnectionCloseError';
+
+ConnectionCloseError.prototype.getMessage = function () {
+	return this.closeEvent.reason;
+};
+
+
+module.exports = {
+	WebError: WebError,
+	NetworkError: NetworkError,
+	TimeoutError: TimeoutError,
+	ConnectionCloseError: ConnectionCloseError
+};
+
+},{"nerr/lib/error_base":9,"inh":10}],7:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 var HttpRequest = require('./http_request');
@@ -1099,69 +1161,7 @@ JsonpRequest.prototype.getResultData = function () {
 
 module.exports = JsonpRequest;
 
-},{"./http_request":6,"./errors":4,"inh":9}],4:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-
-
-var WebError = function (response) {
-	ErrorBase.call(this);
-
-	this.response = response;
-
-	this.status = response.status;
-	var data = response.data || {};
-	this._message = data.message;
-	this.status = response.status;
-	this.code = data.code;
-};
-inherits(WebError, ErrorBase);
-
-WebError.prototype.name = 'WebError';
-
-WebError.prototype.getMessage = function () {
-	return this._message;
-};
-
-
-var NetworkError = function () {
-	ErrorBase.call(this);
-};
-inherits(NetworkError, ErrorBase);
-
-NetworkError.prototype.name = 'NetworkError';
-
-
-var TimeoutError = function () {
-	ErrorBase.call(this);
-};
-inherits(TimeoutError, ErrorBase);
-
-TimeoutError.prototype.name = 'TimeoutError';
-
-
-var ConnectionCloseError = function (closeEvent) {
-	ErrorBase.call(this);
-	this.closeEvent = closeEvent;
-};
-inherits(ConnectionCloseError, ErrorBase);
-
-ConnectionCloseError.prototype.name = 'ConnectionCloseError';
-
-ConnectionCloseError.prototype.getMessage = function () {
-	return this.closeEvent.reason;
-};
-
-
-module.exports = {
-	WebError: WebError,
-	NetworkError: NetworkError,
-	TimeoutError: TimeoutError,
-	ConnectionCloseError: ConnectionCloseError
-};
-
-},{"nerr/lib/error_base":10,"inh":9}],9:[function(require,module,exports){
+},{"./http_request":6,"./errors":4,"inh":10}],10:[function(require,module,exports){
 "use strict";
 var inherits = function(childCtor, parentCtor) {
 	var TempCtor = function () {};
@@ -1174,7 +1174,7 @@ var inherits = function(childCtor, parentCtor) {
 
 module.exports = inherits;
 
-},{}],10:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 
