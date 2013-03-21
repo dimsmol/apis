@@ -11,6 +11,7 @@
 * make ids camelCase on test page
 
 * make Loader command set easier to extend
+* add ability to run cluster without daemonization
 
 ## browserify
 
