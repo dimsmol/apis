@@ -6,8 +6,7 @@ var uglifyOpts = "-c 'unused=false' -m";
 
 var runner = new trun.Runner();
 runner.addTasks({
-	default:
-		'clients',
+	default: 'clients',
 
 	clients: [
 		'client',
