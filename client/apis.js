@@ -820,14 +820,32 @@ module.exports = JsonpRequest;
 
 },{"./http_request":5,"./errors":3,"inh":9}],9:[function(require,module,exports){
 "use strict";
-var inherits = function(childCtor, parentCtor) {
-	var TempCtor = function () {};
-	TempCtor.prototype = parentCtor.prototype;
-	childCtor.super_ = parentCtor;
-	childCtor.prototype = new TempCtor();
-	childCtor.prototype.constructor = childCtor;
-};
+var inherits;
 
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
 
 module.exports = inherits;
 
@@ -899,14 +917,32 @@ module.exports = ErrorBase;
 
 },{"inh":10}],10:[function(require,module,exports){
 "use strict";
-var inherits = function(childCtor, parentCtor) {
-	var TempCtor = function () {};
-	TempCtor.prototype = parentCtor.prototype;
-	childCtor.super_ = parentCtor;
-	childCtor.prototype = new TempCtor();
-	childCtor.prototype.constructor = childCtor;
-};
+var inherits;
 
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
 
 module.exports = inherits;
 
