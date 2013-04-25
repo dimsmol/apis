@@ -1,3 +1,4 @@
+* add domain support for socket mechanics
 * add response to socket on critical error if has requestId
 
 * client
