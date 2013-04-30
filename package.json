@@ -1,6 +1,6 @@
 {
 	"name": "apis",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"description": "Library for creation web and websocket restful APIs",
 	"keywords": ["api", "rest", "web", "websocket"],
 	"author": {
@@ -18,7 +18,7 @@
 		"nerr": "~0.0.1",
 		"valid": "~0.0.2",
 		"units": "~0.0.1",
-		"authen": "~0.0.1",
+		"authen": "~0.0.2",
 		"ops": "~0.0.1",
 		"inh": "~0.0.1",
 
