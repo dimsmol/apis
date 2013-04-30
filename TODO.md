@@ -1,6 +1,8 @@
 * add domain support for socket mechanics
 * add response to socket on critical error if has requestId
 
+* allow to reuse connect/express middlewares as handlers
+
 * client
 	* body parsing options
 	* headers translation options
