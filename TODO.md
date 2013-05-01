@@ -1,3 +1,6 @@
+* deny loading from frame by default
+	* way to allow frames
+
 * add domain support for socket mechanics
 * add response to socket on critical error if has requestId
 
