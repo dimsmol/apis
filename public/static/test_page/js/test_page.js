@@ -4,13 +4,14 @@ var TestPage = require('./test_page');
 
 
 var testPage = new TestPage();
-window.addEventListener('load', function () {
+addEventListener('load', function () {
 	testPage.initUi();
 });
 
 },{"./test_page":2}],2:[function(require,module,exports){
 "use strict";
 var apis = require('../../client');
+var SockJS = window.SockJS;
 
 
 var TestPage = function () {
@@ -322,7 +323,7 @@ TestPage.prototype.initButtons = function (headers, body) {
 
 TestPage.prototype.initKeyHandler = function () {
 	var self = this;
-	window.addEventListener('keypress', function (e) {
+	addEventListener('keypress', function (e) {
 		if (e.keyCode == 13) {
 			var tag = e.srcElement.tagName;
 			if (tag != 'BUTTON') {
@@ -368,7 +369,7 @@ module.exports = {
 	Socket: Socket
 };
 
-},{"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":7,"./socket":8}],5:[function(require,module,exports){
+},{"./errors":4,"./http":5,"./jsonp_request":6,"./http_request":7,"./socket":8}],5:[function(require,module,exports){
 "use strict";
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
@@ -406,7 +407,7 @@ Http.prototype.sendJsonp = function (path, method, headers, data, options, cb) {
 
 module.exports = Http;
 
-},{"./http_request":6,"./jsonp_request":7}],6:[function(require,module,exports){
+},{"./http_request":7,"./jsonp_request":6}],7:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 
@@ -583,11 +584,13 @@ HttpRequest.prototype.createHttpHeaders = function () {
 	var headers = this.headers;
 	var result = headers.http || {};
 	delete headers.http;
-	if (headers.auth) {
-		result[this.authHttpHeaderName] = headers.auth;
-	}
-	if (headers.authExpected) {
-		result[this.authExpectedHttpHeaderName] = headers.authExpected;
+	if (headers.auth != null) {
+		if (headers.auth.token) {
+			result[this.authHttpHeaderName] = headers.auth.token;
+			if (headers.auth.expected) {
+				result[this.authExpectedHttpHeaderName] = headers.auth.expected;
+			}
+		}
 	}
 	return result;
 };
@@ -1001,7 +1004,7 @@ module.exports = {
 	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"nerr/lib/error_base":9,"inh":10}],7:[function(require,module,exports){
+},{"nerr/lib/error_base":9,"inh":10}],6:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 var HttpRequest = require('./http_request');
@@ -1161,7 +1164,7 @@ JsonpRequest.prototype.getResultData = function () {
 
 module.exports = JsonpRequest;
 
-},{"./http_request":6,"./errors":4,"inh":10}],10:[function(require,module,exports){
+},{"./http_request":7,"./errors":4,"inh":10}],10:[function(require,module,exports){
 "use strict";
 var inherits;
 

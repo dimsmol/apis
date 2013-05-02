@@ -235,11 +235,13 @@ HttpRequest.prototype.createHttpHeaders = function () {
 	var headers = this.headers;
 	var result = headers.http || {};
 	delete headers.http;
-	if (headers.auth) {
-		result[this.authHttpHeaderName] = headers.auth;
-	}
-	if (headers.authExpected) {
-		result[this.authExpectedHttpHeaderName] = headers.authExpected;
+	if (headers.auth != null) {
+		if (headers.auth.token) {
+			result[this.authHttpHeaderName] = headers.auth.token;
+			if (headers.auth.expected) {
+				result[this.authExpectedHttpHeaderName] = headers.auth.expected;
+			}
+		}
 	}
 	return result;
 };
