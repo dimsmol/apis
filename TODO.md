@@ -1,5 +1,10 @@
+* make use of HttpAdapter in client
+* rename xdomain -> crossDomain everywhere
+
 * deny loading from frame by default
 	* way to allow frames
+
+* make HttpAdapter transforms work more automatically
 
 * add domain support for socket mechanics
 * add response to socket on critical error if has requestId
