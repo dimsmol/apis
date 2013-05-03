@@ -56,7 +56,7 @@ TestPage.prototype.httpSend = function () {
 		if (this.http == null || this.http.baseUri != this.requestBaseField.value) {
 			this.http = this.createHttp();
 		}
-		var funcName = (fields.xdomain == 'none' ? 'send' : fields.xdomain);
+		var funcName = (fields.crossDomain == 'none' ? 'send' : fields.crossDomain);
 		var self = this;
 		var req = this.http.send(
 			fields.path,
@@ -64,7 +64,7 @@ TestPage.prototype.httpSend = function () {
 			fields.headers,
 			fields.data,
 			{
-				crossDomain: fields.xdomain == 'none' ? null : fields.xdomain
+				crossDomain: fields.crossDomain == 'none' ? null : fields.crossDomain
 			},
 			function (err, result) {
 				if (err != null) {
@@ -150,7 +150,7 @@ TestPage.prototype.initUi = function () {
 	this.requestHeadersFieldGroup = this.byId('request-headers-group');
 	this.requestBodyField = this.byId('request-body');
 	this.requestBodyFieldGroup = this.byId('request-body-group');
-	this.requestXdomainField = this.byId('request-xdomain');
+	this.requestCrossDomainField = this.byId('request-crossDomain');
 
 	this.requestSmartHeadersField = this.byId('request-smart-headers');
 	this.requestRawBodyField = this.byId('request-raw-body');
@@ -258,7 +258,7 @@ TestPage.prototype.collectFields = function (cb) {
 		method: this.requestMethodField.value,
 		headers: this.jsonval(this.requestHeadersField, this.requestHeadersFieldGroup),
 		data: this.requestRawBodyField.checked ? this.requestBodyField.value : this.jsonval(this.requestBodyField, this.requestBodyFieldGroup),
-		xdomain: this.requestXdomainField.value == 'none' ? null : this.requestXdomainField.value
+		crossDomain: this.requestCrossDomainField.value == 'none' ? null : this.requestCrossDomainField.value
 	};
 };
 
@@ -369,17 +369,26 @@ module.exports = {
 	Socket: Socket
 };
 
-},{"./errors":4,"./http":5,"./jsonp_request":6,"./http_request":7,"./socket":8}],5:[function(require,module,exports){
+},{"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":7,"./socket":8}],5:[function(require,module,exports){
 "use strict";
+var HttpAdapter = require('../node_client/http_adapter');
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
+var errors = require('./errors');
 
 
-var Http = function (opt_baseUri) {
+var Http = function (opt_baseUri, opt_options) {
 	this.baseUri = opt_baseUri;
+	this.options = opt_options || {};
+	this.adapter = null;
+};
+
+Http.prototype.setAdapter = function (adapter) {
+	this.adapter = adapter;
 };
 
 Http.prototype.send = function (path, method, headers, data, options, cb) {
+	this.ensureAdapter();
 	var result;
 	if (options == null || options.crossDomain == null) {
 		result = this.sendHttp(path, method, headers, data, options, cb);
@@ -396,282 +405,51 @@ Http.prototype.send = function (path, method, headers, data, options, cb) {
 	return result;
 };
 
+// internal
+
+Http.prototype.ensureAdapter = function () {
+	if (this.adapter == null) {
+		this.adapter = this.createAdapter(this.options.adapter);
+	}
+};
+
+Http.prototype.createAdapter = function (opt_options) {
+	return new HttpAdapter(opt_options);
+};
+
 Http.prototype.sendHttp = function (path, method, headers, data, options, cb) {
-	return new HttpRequest(this, path, method, headers, data, options, cb).send();
+	var req = this.adapter.createRequestData(this.baseUri, path, method, headers, data, options);
+	var self = this;
+	return HttpRequest.send(req, options, function (err, result) {
+		self.handleHttpResult(err, result, options, cb);
+	});
 };
 
 Http.prototype.sendJsonp = function (path, method, headers, data, options, cb) {
-	return new JsonpRequest(this, path, method, headers, data, options, cb).send();
-};
-
-
-module.exports = Http;
-
-},{"./http_request":7,"./jsonp_request":6}],7:[function(require,module,exports){
-"use strict";
-var errors = require('./errors');
-
-
-var HttpRequest = function (http, path, method, headers, data, options, cb) {
-	this.http = http;
-	this.options = options || {};
-	this.path = path;
-	this.method = method;
-	this.headers = headers || {};
-	this.data = data;
-	this.cb = cb;
-
-	this.url = null;
-	this.body = null;
-	this.transport = null;
-	this.isAborted = false;
-	this.timeout = null;
-};
-
-HttpRequest.prototype.methodHttpHeaderName = 'X-Method';
-HttpRequest.prototype.authHttpHeaderName = 'X-Auth';
-HttpRequest.prototype.authExpectedHttpHeaderName = 'X-AuthExpected';
-HttpRequest.prototype.authRenewalHttpHeaderName = 'X-AuthRenewal';
-HttpRequest.prototype.authRenewalIssuedHttpHeaderName = 'X-AuthRenewalIssued';
-HttpRequest.prototype.authRenewalMaxAgeHttpHeaderName = 'X-AuthRenewalMaxAge';
-
-HttpRequest.prototype.headersUrlKey = 'headers';
-HttpRequest.prototype.bodyUrlKey = 'body';
-HttpRequest.prototype.xdomainUrlKey = 'xdomain';
-
-HttpRequest.prototype.defaultContentType = 'application/json';
-
-HttpRequest.prototype.send = function () {
-	this.createTimeout();
-	this.url = this.createUrl();
-	this.body = this.createBody();
-	this.transport = this.createTransport();
-	this.createCallback();
-	this.sendInternal();
-	return this;
-};
-
-HttpRequest.prototype.abort = function () {
-	this.isAborted = true;
-	this.clearTimeout();
-	if (this.transport != null) {
-		this.transport.onreadystatechange = null;
-		this.transport.abort();
-	}
-};
-
-HttpRequest.prototype.createTimeout = function () {
-	var timeout = this.options.timeout;
-	if (timeout != null) {
-		var self = this;
-		this.timeout = setTimeout(function () {
-			self.handleTimeout();
-		}, timeout);
-	}
-};
-
-HttpRequest.prototype.handleTimeout = function () {
-	this.abort();
-	this.cb(new errors.TimeoutError());
-};
-
-HttpRequest.prototype.clearTimeout = function () {
-	if (this.timeout != null) {
-		clearTimeout(this.timeout);
-	}
-};
-
-HttpRequest.prototype.createUrl = function () {
-	var result = this.path;
-	if (this.http.baseUri) {
-		result = this.http.baseUri + this.path;
-	}
-	return result;
-};
-
-HttpRequest.prototype.createBody = function () {
-	var result;
-	if (this.data === undefined) {
-		result = '';
-	}
-	else {
-		result = JSON.stringify(this.data);
-	}
-	return result;
-};
-
-HttpRequest.prototype.createTransport = function () {
-	return new XMLHttpRequest();
-};
-
-HttpRequest.prototype.createCallback = function () {
+	var url = this.adapter.createRequestUrl(this.baseUri, path, method, headers, data, options);
 	var self = this;
-	// NOTE use onload/onerror pair instead of
-	// onreadystatechange in future (will break IE8 support)
-	this.transport.onreadystatechange = function() {
-		if(self.transport.readyState == 4) {
-			self.transport.onreadystatechange = null;
-			if (self.isNetworkError()) {
-				self.handleNetworkError();
-			}
-			else {
-				self.handleResponse();
-			}
-		}
-	};
+	return JsonpRequest.send(url, options, function (err, result) {
+		self.handleJsonpResult(err, result, options, cb);
+	});
 };
 
-HttpRequest.prototype.isNetworkError = function () {
-	// NOTE works incorrectly with file:// protocol
-	return !this.transport.status;
-};
-
-HttpRequest.prototype.handleNetworkError = function () {
-	this.clearTimeout();
-	this.cb(new errors.NetworkError());
-};
-
-HttpRequest.prototype.sendInternal = function () {
-	if (this.method == 'get') {
-		this.sendGet();
+Http.prototype.handleHttpResult = function (err, httpResult, options, cb) {
+	var result;
+	if (err == null) {
+		result = this.adapter.parseResponseData(httpResult.status, httpResult.headers, httpResult.body, options);
+		err = this.extractError(result);
 	}
-	else {
-		this.sendPost();
+	cb(err, result);
+};
+
+Http.prototype.handleJsonpResult = function (err, result, options, cb) {
+	if (err == null) {
+		err = this.extractError(result);
 	}
+	cb(err, result);
 };
 
-HttpRequest.prototype.sendGet = function () {
-	this.transport.open('GET', this.createGetUrl());
-	this.setHttpHeaders();
-	this.transport.send();
-};
-
-HttpRequest.prototype.createGetUrl = function () {
-	var parts = this.createGetUrlParts();
-	var result = this.url;
-	if (parts.length > 0) {
-		result += '?' + parts.join('&');
-	}
-	return result;
-};
-
-HttpRequest.prototype.createGetUrlParts = function (opt_parts) {
-	var parts = opt_parts || [];
-	if (this.body) {
-		parts.push(this.bodyUrlKey + '=' + encodeURIComponent(this.body));
-	}
-	return parts;
-};
-
-HttpRequest.prototype.sendPost = function () {
-	var transport = this.transport;
-	transport.open('POST', this.url);
-	this.setContentTypeHttpHeader();
-	this.setMethodHttpHeader();
-	this.setHttpHeaders();
-	transport.send(this.body);
-};
-
-HttpRequest.prototype.setHttpHeaders = function () {
-	var headers = this.createHttpHeaders();
-	var transport = this.transport;
-	for (var k in headers) {
-		transport.setRequestHeader(k, headers[k]);
-	}
-};
-
-HttpRequest.prototype.createHttpHeaders = function () {
-	var headers = this.headers;
-	var result = headers.http || {};
-	delete headers.http;
-	if (headers.auth != null) {
-		if (headers.auth.token) {
-			result[this.authHttpHeaderName] = headers.auth.token;
-			if (headers.auth.expected) {
-				result[this.authExpectedHttpHeaderName] = headers.auth.expected;
-			}
-		}
-	}
-	return result;
-};
-
-HttpRequest.prototype.setContentTypeHttpHeader = function () {
-	var contentType = this.headers.http && this.headers.http['Content-type'] || this.headers.contentType || this.defaultContentType;
-	this.transport.setRequestHeader('Content-type', contentType);
-};
-
-HttpRequest.prototype.setMethodHttpHeader = function () {
-	if (this.method != 'create') {
-		this.transport.setRequestHeader(this.methodHttpHeaderName, this.method);
-	}
-};
-
-HttpRequest.prototype.handleResponse = function () {
-	this.clearTimeout();
-	var result = this.createResult();
-	var err = this.extractError(result);
-	if (err != null) {
-		this.cb(err);
-	}
-	else {
-		this.cb(null, result);
-	}
-};
-
-HttpRequest.prototype.createResult = function () {
-	var result = {
-		headers: this.getResultHeaders(),
-		data: this.getResultData()
-	};
-	var status = this.getResultStatus();
-	if (status != null) {
-		result.status = status;
-	}
-	var transport = this.getTransportForResult();
-	if (transport != null) {
-		result.transport = transport;
-	}
-	return result;
-};
-
-HttpRequest.prototype.getTransportForResult = function () {
-	return this.transport;
-};
-
-HttpRequest.prototype.getResultStatus = function () {
-	return this.transport.status;
-};
-
-HttpRequest.prototype.getResultHeaders = function () {
-	var result = {};
-	var authRenewalToken = this.transport.getResponseHeader(this.authRenewalHttpHeaderName);
-	if (authRenewalToken) {
-		var renewal = {
-			token: authRenewalToken
-		};
-		result.authRenewal = renewal;
-		var issued = this.transport.getResponseHeader(this.authRenewalIssuedHttpHeaderName);
-		if (issued) {
-			renewal.issued = new Date(issued);
-		}
-		var maxAge = this.transport.getResponseHeader(this.authRenewalMaxAgeHttpHeaderName);
-		if (maxAge) {
-			renewal.maxAge = parseInt(maxAge, 10);
-		}
-	}
-	return result;
-};
-
-HttpRequest.prototype.getResultData = function () {
-	var body = this.getResultBody();
-	return body ? JSON.parse(body) : undefined;
-};
-
-HttpRequest.prototype.getResultBody = function () {
-	return this.transport.responseText;
-};
-
-HttpRequest.prototype.extractError = function (result) {
+Http.prototype.extractError = function (result) {
 	var status = result.status;
 	var err = null;
 	if (status != 200 && status != 204) {
@@ -681,7 +459,227 @@ HttpRequest.prototype.extractError = function (result) {
 };
 
 
+module.exports = Http;
+
+},{"../node_client/http_adapter":9,"./http_request":6,"./jsonp_request":7,"./errors":4}],6:[function(require,module,exports){
+"use strict";
+var NetworkError = require('./errors').NetworkError;
+
+
+var HttpRequest = function (opt_options) {
+	this.isAborted = false;
+	this.xhr = null;
+	this.cb = null;
+};
+
+HttpRequest.prototype.send = function (req, cb) {
+	this.cb = cb;
+	var xhr = new XMLHttpRequest();
+	this.xhr = xhr;
+	var self = this;
+	xhr.onreadystatechange = function() {
+		if(xhr.readyState == 4) {
+			xhr.onreadystatechange = null;
+			if (!self.isAborted) {
+				self.handleResult();
+			}
+		}
+	};
+	xhr.open(req.method, req.url);
+	for (var k in req.headers) {
+		xhr.setRequestHeader(k, req.headers[k]);
+	}
+	xhr.send(req.body);
+};
+
+HttpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.xhr.onreadystatechange = null;
+	this.xhr.abort();
+};
+
+HttpRequest.prototype.handleResult = function () {
+	var xhr = this.xhr;
+	if (!xhr.status) {
+		this.cb(new NetworkError());
+	}
+	else {
+		this.cb(null, {
+			status: xhr.status,
+			headers: {
+				get: function (k) {
+					return xhr.getResponseHeader(k);
+				}
+			},
+			body: xhr.responseText
+		});
+	}
+};
+
+HttpRequest.send = function (req, options, cb) {
+	var instance = new HttpRequest(options);
+	instance.send(req, cb);
+	return instance;
+};
+
+
 module.exports = HttpRequest;
+
+},{"./errors":4}],7:[function(require,module,exports){
+"use strict";
+var NetworkError = require('./errors').NetworkError;
+
+
+var JsonpRequest = function (opt_options) {
+	var options = opt_options || {};
+	this.callbackUrlKey = options.callbackUrlKey || this.defaultCallbackUrlKey;
+
+	this.callbacks = this.getCallbacks();
+
+	this.cb = null;
+	this.scriptEl = null;
+	this.callbackId = null;
+};
+
+JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
+JsonpRequest.prototype.defaultCallbackUrlKey = 'callback';
+
+JsonpRequest.prototype.getCallbacks = function () {
+	if (JsonpRequest.callbacks == null) {
+		var parts = this.callbacksGlobalPath.split('.');
+		var curr = window;
+		for (var i = 0; i < parts.length; i++) {
+			var part = parts[i];
+			var next = curr[part] || {};
+			curr[part] = next;
+			curr = next;
+		}
+		JsonpRequest.callbacks = curr;
+	}
+	return JsonpRequest.callbacks;
+};
+
+JsonpRequest.prototype.send = function (url, cb) {
+	this.cb = cb;
+	this.initCallback();
+	url = this.addCallbackToUrl(url);
+	this.injectScript(url);
+};
+
+JsonpRequest.prototype.initCallback = function () {
+	var self = this;
+	this.callbackId = this.createCallbackId();
+	this.callbacks[this.callbackId] = function (result) {
+		if (!self.isAborted) {
+			self.cleanup();
+			self.handleResult(result);
+		}
+	};
+};
+
+JsonpRequest.prototype.createCallbackId = function () {
+	var base = 'cb' + (new Date().getTime());
+	var i = 0;
+	var result = base;
+	while (result in this.callbacks) {
+		result = base + '_' + (i++);
+	}
+	return result;
+};
+
+JsonpRequest.prototype.addCallbackToUrl = function (url) {
+	var pos = url.indexOf('?');
+	var result;
+	if (pos < 0) {
+		result = [
+			url, '?',
+			this.callbackUrlKey, '=', this.createCallbackName()
+		].join('');
+	}
+	else {
+		result = [
+			url.substr(0, pos + 1),
+			this.callbackUrlKey, '=', this.createCallbackName(),
+			'&', url.substr(pos + 1)
+		].join('');
+	}
+	return result;
+};
+
+JsonpRequest.prototype.createCallbackName = function () {
+	return [this.callbacksGlobalPath, '.', this.callbackId].join('');
+};
+
+JsonpRequest.prototype.createScript = function () {
+	var el = document.createElement('script');
+	el.async = true;
+	var self = this;
+	el.onerror = function (ev) {
+		self.handleScriptErrorEvent(ev);
+	};
+	return el;
+};
+
+JsonpRequest.prototype.injectScript = function (url) {
+	var scriptEl = this.createScript();
+	this.scriptEl = scriptEl;
+
+	var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
+	var firstChild = head.firstChild;
+	if (firstChild) {
+		head.insertBefore(scriptEl, head.firstChild);
+	}
+	else {
+		head.appendChild(scriptEl);
+	}
+
+	scriptEl.src = url;
+};
+
+JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
+	if (!this.isAborted) {
+		this.cleanup();
+		this.cb(new NetworkError());
+	}
+};
+
+JsonpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.cleanup();
+};
+
+JsonpRequest.prototype.cleanup = function () {
+	this.removeCallback();
+	this.removeScripEl();
+};
+
+JsonpRequest.prototype.removeCallback = function () {
+	delete this.callbacks[this.callbackId];
+};
+
+JsonpRequest.prototype.removeScripEl = function () {
+	var scriptEl = this.scriptEl;
+	if (scriptEl != null && scriptEl.parentNode) {
+		scriptEl.parentNode.removeChild(scriptEl);
+		this.scriptEl = null;
+	}
+};
+
+JsonpRequest.prototype.handleResult = function (result) {
+	var headers = result.headers || {};
+	result.headers = headers;
+	result.status = headers.status;
+	this.cb(null, result);
+};
+
+JsonpRequest.send = function (url, options, cb) {
+	var instance = new JsonpRequest(options);
+	instance.send(url, cb);
+	return instance;
+};
+
+
+module.exports = JsonpRequest;
 
 },{"./errors":4}],8:[function(require,module,exports){
 "use strict";
@@ -696,8 +694,7 @@ var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
 	this.onSocketCreated = null;
 	this.onMessage = null;
 
-	// NOTE you can set this property to use sockjs or whatever
-	this.customWebSocketClass = null;
+	this.webSocketClass = WebSocket;
 
 	this.socket = null;
 	this.requests = {};
@@ -709,8 +706,8 @@ Socket.prototype.defaultSocketUri = '/socket';
 Socket.prototype.headerSeparator = '\n\n';
 Socket.prototype.defaultTimeout = null;
 
-Socket.prototype.getWebSocketClass = function () {
-	return this.customWebSocketClass || WebSocket;
+Socket.prototype.setWebSocketClass = function (c) {
+	this.webSocketClass = c;
 };
 
 Socket.prototype.createAbortFunc = function () {
@@ -721,7 +718,7 @@ Socket.prototype.createAbortFunc = function () {
 };
 
 Socket.prototype.createSocket = function () {
-	var WebSocketClass = this.getWebSocketClass();
+	var WebSocketClass = this.webSocketClass;
 	return new WebSocketClass(this.socketUri, this.protocols);
 };
 
@@ -1004,167 +1001,7 @@ module.exports = {
 	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"nerr/lib/error_base":9,"inh":10}],6:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var HttpRequest = require('./http_request');
-var errors = require('./errors');
-
-
-var JsonpRequest = function (http, path, method, headers, data, options, cb) {
-	HttpRequest.call(this, http, path, method, headers, data, options, cb);
-	this.callbacks = this.getCallbacks();
-	this.scriptEl = null;
-	this.callbackId = null;
-	this.response = null;
-};
-inherits(JsonpRequest, HttpRequest);
-
-JsonpRequest.callbacks = null;
-
-JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
-JsonpRequest.prototype.xdomainValue = 'jsonp';
-JsonpRequest.prototype.jsonpCallbackUrlKey = 'callback';
-
-JsonpRequest.prototype.abort = function () {
-	this.isAborted = true;
-	this.clearTimeout();
-};
-
-JsonpRequest.prototype.getCallbacks = function () {
-	if (JsonpRequest.callbacks == null) {
-		var parts = this.callbacksGlobalPath.split('.');
-		var curr = window;
-		for (var i = 0; i < parts.length; i++) {
-			var part = parts[i];
-			var next = curr[part] || {};
-			curr[part] = next;
-			curr = next;
-		}
-		JsonpRequest.callbacks = curr;
-	}
-	return JsonpRequest.callbacks;
-};
-
-JsonpRequest.prototype.createTransport = function () {
-	var el = document.createElement('script');
-	el.async = true;
-	var self = this;
-	el.onerror = function (ev) {
-		self.handleScriptErrorEvent(ev);
-	};
-	this.scriptEl = el;
-	return el;
-};
-
-JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
-	this.cleanup();
-	if (!this.isAborted) {
-		this.cb(new errors.NetworkError());
-	}
-};
-
-JsonpRequest.prototype.createCallback = function () {
-	var self = this;
-	this.callbackId = this.createCallbackId();
-	this.callbacks[this.callbackId] = function (response) {
-		self.response = response;
-		self.handleResponse();
-	};
-};
-
-JsonpRequest.prototype.createCallbackId = function () {
-	var base = 'cb' + (new Date().getTime());
-	var i = 0;
-	var result = base;
-	while (result in this.callbacks) {
-		result = base + '_' + (i++);
-	}
-	return result;
-};
-
-JsonpRequest.prototype.sendInternal = function () {
-	this.scriptEl.src = this.createGetUrl();
-
-	var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
-	var firstChild = head.firstChild;
-	if (firstChild) {
-		head.insertBefore(this.scriptEl, head.firstChild);
-	}
-	else {
-		head.appendChild(this.scriptEl);
-	}
-};
-
-JsonpRequest.prototype.createGetUrlParts = function (opt_parts) {
-	var parts = opt_parts || [];
-	var headers = this.headers;
-	if (this.method != 'get') {
-		headers = headers || {};
-		headers.method = this.method;
-	}
-	if (headers) {
-		parts.push(this.headersUrlKey + '=' + encodeURIComponent(JSON.stringify(headers)));
-	}
-	JsonpRequest.super_.prototype.createGetUrlParts.call(this, parts);
-	parts.push(this.xdomainUrlKey + '=' + this.xdomainValue);
-	parts.push(this.jsonpCallbackUrlKey + '=' + encodeURIComponent(this.createCallbackName()));
-	return parts;
-};
-
-JsonpRequest.prototype.createCallbackName = function () {
-	return this.callbacksGlobalPath + '.' + this.callbackId;
-};
-
-JsonpRequest.prototype.setHttpHeaders = function () {
-};
-
-JsonpRequest.prototype.handleResponse = function () {
-	this.cleanup();
-	if (!this.isAborted) {
-		JsonpRequest.super_.prototype.handleResponse.call(this);
-	}
-};
-
-JsonpRequest.prototype.cleanup = function () {
-	this.clearTimeout();
-	this.removeCallback();
-	this.removeScripEl();
-};
-
-JsonpRequest.prototype.removeCallback = function () {
-	delete this.callbacks[this.callbackId];
-};
-
-JsonpRequest.prototype.removeScripEl = function () {
-	var scriptEl = this.scriptEl;
-	if (scriptEl != null && scriptEl.parentNode) {
-		scriptEl.parentNode.removeChild(scriptEl);
-		this.scriptEl = null;
-	}
-};
-
-JsonpRequest.prototype.getTransportForResult = function () {
-	return null;
-};
-
-JsonpRequest.prototype.getResultStatus = function () {
-	var headers = this.getResultHeaders();
-	return headers.status;
-};
-
-JsonpRequest.prototype.getResultHeaders = function () {
-	return this.response.headers || {};
-};
-
-JsonpRequest.prototype.getResultData = function () {
-	return this.response.data;
-};
-
-
-module.exports = JsonpRequest;
-
-},{"./http_request":7,"./errors":4,"inh":10}],10:[function(require,module,exports){
+},{"nerr/lib/error_base":10,"inh":11}],11:[function(require,module,exports){
 "use strict";
 var inherits;
 
@@ -1196,6 +1033,370 @@ else {
 module.exports = inherits;
 
 },{}],9:[function(require,module,exports){
+"use strict";
+var ops = require('ops');
+
+
+var HttpAdapter = function (opt_options) {
+	this.options = ops.cloneWithDefaults(opt_options, this.getDefaultOptions());
+};
+
+HttpAdapter.prototype.getDefaultOptions = function () {
+	return {
+		transform: {
+			headers: {
+				req: {
+					method: 'X-Method',
+					contentType: 'Content-type',
+					auth: {
+						token: 'X-Auth',
+						expected: 'X-AuthExpected'
+					}
+				},
+				res: {
+					renewal: {
+						token: 'X-AuthRenewal',
+						issued: 'X-AuthRenewalIssued',
+						maxAge: 'X-AuthRenewalMaxAge'
+					}
+				}
+			},
+			url: {
+				headers: 'headers',
+				body: 'body'
+			}
+		},
+		defaultContentType: 'application/json'
+	};
+};
+
+HttpAdapter.prototype.createRequestData = function (base, path, method, headers, data, options) {
+	var httpMethod = this.createMethod(method, options);
+	var body = this.createBody(data, options);
+
+	var hasBody = body && this.canHaveBody(httpMethod, options);
+	var httpHeaders = this.createHeaders(method, headers, hasBody, options);
+
+	var urlParts = null;
+	if (!hasBody && body) {
+		urlParts = {
+			body: body
+		};
+	}
+
+	var url = this.createUrl(base, path, urlParts, options);
+
+	return {
+		url: url,
+		method: httpMethod,
+		headers: httpHeaders,
+		body: body,
+		options: options.http
+	};
+};
+
+HttpAdapter.prototype.createRequestUrl = function (base, path, method, headers, data, options) {
+	if (method != 'get') {
+		headers = headers || {};
+		headers.method = method;
+	}
+	return this.createUrl(base, path, {
+		headers: this.stringifyHeaders(headers, options),
+		body: this.createBody(data, options)
+	}, options);
+};
+
+HttpAdapter.prototype.parseResponseData = function (status, headers, body, options) {
+	if (headers.constructor === Object) {
+		headers = {
+			get: function (k) {
+				return headers[k];
+			}
+		};
+	}
+	return {
+		status: status,
+		headers: this.parseHeaders(headers, options),
+		data: this.parseBody(body, options)
+	};
+};
+
+// internal
+
+// create
+
+HttpAdapter.prototype.canHaveBody = function (httpMethod, options) {
+	return httpMethod != 'GET' && httpMethod != 'HEAD';
+};
+
+HttpAdapter.prototype.createUrl = function (base, path, urlParts, options) {
+	var result = [base, path];
+	if (urlParts != null) {
+		var query = this.createQuery(urlParts, options);
+		if (query) {
+			result.push('?', query);
+		}
+	}
+	return result.join('');
+};
+
+HttpAdapter.prototype.createMethod = function (method, options) {
+	return ({
+		get: 'GET',
+		head: 'HEAD',
+		options: 'OPTIONS'
+	}[method]) || 'POST';
+};
+
+HttpAdapter.prototype.createQuery = function (urlParts, options) {
+	var result = [];
+	var urlKeys = this.options.transform.url;
+	for (var k in urlParts) {
+		var part = urlParts[k];
+		if (part) {
+			var urlKey = urlKeys[k];
+			if (urlKey) {
+				result.push(this.createQueryItem(urlKeys[k], part));
+			}
+		}
+	}
+	return result.length > 0 ? result.join('&') : null;
+};
+
+HttpAdapter.prototype.createQueryItem = function (k, v) {
+	return [k, encodeURIComponent(v)].join('=');
+};
+
+HttpAdapter.prototype.createHeaders = function (method, headers, hasBody, options) {
+	headers = headers || {};
+	var result = {};
+	if (headers.http) {
+		for (var k in headers.http) {
+			result[k] = headers.http[k];
+		}
+	}
+	var keys = this.options.transform.headers.req;
+	if (method != 'get' && method != 'head' && method != 'create' && method != 'options') {
+		result[keys.method] = method;
+	}
+	this.applyHeaders(keys, result, headers, options);
+	if (hasBody && !headers[keys.contentType]) {
+		result[keys.contentType] = this.options.defaultContentType;
+	}
+	return result;
+};
+
+HttpAdapter.prototype.applyHeaders = function (keys, httpHeaders, headers, options) {
+	if (headers.contentType) {
+		httpHeaders[keys.contentType] = headers.contentType;
+	}
+	if (headers.auth != null) {
+		this.applyAuthHeaders(keys.auth, httpHeaders, headers.auth, options);
+	}
+};
+
+HttpAdapter.prototype.applyAuthHeaders = function (keys, httpHeaders, authHeaders, options) {
+	if (authHeaders.token) {
+		httpHeaders[keys.token] = authHeaders.token;
+		if (authHeaders.expected) {
+			httpHeaders[keys.expected] = authHeaders.expected;
+		}
+	}
+};
+
+HttpAdapter.prototype.stringifyHeaders = function (headers, options) {
+	var result = null;
+	if (headers != null) {
+		var http = headers.http;
+		if (http) {
+			delete headers.http;
+		}
+		result = JSON.stringify(headers);
+		if (http) {
+			headers.http = http;
+		}
+	}
+	return result;
+};
+
+HttpAdapter.prototype.createBody = function (data, options) {
+	var result;
+	if (data !== undefined) {
+		result = JSON.stringify(data);
+	}
+	return result;
+};
+
+// parse
+
+HttpAdapter.prototype.parseHeaders = function (headers, options) {
+	var result = {};
+	var keys = this.options.transform.headers.res;
+	var renewal = this.parseRenewalHeaders(keys.renewal, headers, options);
+	if (renewal) {
+		result.renewal = renewal;
+	}
+	return result;
+};
+
+HttpAdapter.prototype.parseRenewalHeaders = function (keys, headers, options) {
+	var result = null;
+	var token = headers.get(keys.token);
+	if (token) {
+		result = {
+			token: token
+		};
+		var issued = parseInt(headers.get(keys.issued), 10);
+		if (!isNaN(issued)) {
+			result.issued = issued;
+		}
+		var maxAge = parseInt(headers.get(keys.maxAge), 10);
+		if (!isNaN(maxAge)) {
+			result.maxAge = maxAge;
+		}
+	}
+	return result;
+};
+
+HttpAdapter.prototype.parseBody = function (body) {
+	return body ? JSON.parse(body) : undefined;
+};
+
+
+module.exports = HttpAdapter;
+
+},{"ops":12}],12:[function(require,module,exports){
+"use strict";
+var Ops = function () {
+};
+
+Ops.prototype.isDict = function (v) {
+	return v != null && v.constructor === Object;
+};
+
+Ops.prototype.defines = function (v, k) {
+	return v[k] !== undefined;
+};
+
+Ops.prototype.applyDefaults = function (options, defaults, opt_cloneDefaults) {
+	var result;
+	if (options == null) {
+		if (opt_cloneDefaults) {
+			defaults = this.clone(defaults);
+		}
+		result = defaults;
+	}
+	else {
+		result = options;
+		if (defaults != null) {
+			for(var k in defaults) {
+				var defaultsValue = defaults[k];
+				if (this.defines(options, k)) {
+					if (this.isDict(defaultsValue)) {
+						var optionsValue = options[k];
+						if (this.isDict(optionsValue)) {
+							this.applyDefaults(optionsValue, defaultsValue);
+						}
+					}
+				}
+				else {
+					if (opt_cloneDefaults) {
+						defaultsValue = this.clone(defaultsValue);
+					}
+					options[k] = defaultsValue;
+				}
+			}
+		}
+	}
+	return result;
+};
+
+Ops.prototype.clone = function (v) {
+	return this.cloneValueWithDefaults(v);
+};
+
+Ops.prototype.cloneWithDefaults = function (options, defaults, opt_cloneDefaults) {
+	var result;
+	if (options == null) {
+		if (opt_cloneDefaults) {
+			result = this.clone(defaults);
+		}
+		else {
+			result = defaults;
+		}
+	}
+	else {
+		result = this.cloneValueWithDefaults(options, defaults, opt_cloneDefaults);
+	}
+	return result;
+};
+
+Ops.prototype.cloneValueWithDefaults = function (v, defaults, opt_cloneDefaults) {
+	if (v != null) {
+		if (this.isDict(v)) {
+			v = this.cloneDictWithDefaults(v, defaults, opt_cloneDefaults);
+		} else if (Array.isArray(v)) {
+			v = this.cloneArray(v);
+		}
+		// WARN assuming no user types can be here
+	}
+	return v;
+};
+
+Ops.prototype.cloneDict = function (v) {
+	return this.cloneDictWithDefaults(v);
+};
+
+Ops.prototype.cloneDictWithDefaults = function (v, defaults, opt_cloneDefaults) {
+	var result = {};
+	var k;
+	if (!this.isDict(defaults)) {
+		defaults = null;
+	}
+	for (k in v) {
+		var defaultsValue;
+		if (defaults != null && k in defaults) {
+			defaultsValue = defaults[k];
+		}
+		result[k] = this.cloneValueWithDefaults(v[k], defaultsValue, opt_cloneDefaults);
+	}
+	if (defaults != null) {
+		for (k in defaults) {
+			if (!this.defines(v, k)) {
+				result[k] = opt_cloneDefaults ? this.clone(defaults[k]) : defaults[k];
+			}
+		}
+	}
+	return result;
+};
+
+Ops.prototype.cloneArray = function (v) {
+	var result = [];
+	for (var i = 0; i < v.length; i++) {
+		result.push(this.clone(v[i]));
+	}
+	return result;
+};
+
+var ops = new Ops();
+ops.Ops = Ops;
+
+var result = {
+	applyDefaults: function (options, defaults, opt_cloneDefaults) {
+		return ops.applyDefaults(options, defaults, opt_cloneDefaults);
+	},
+	cloneWithDefaults: function (options, defaults, opt_cloneDefaults) {
+		return ops.cloneWithDefaults(options, defaults, opt_cloneDefaults);
+	},
+	clone: function (v) {
+		return ops.clone(v);
+	}
+};
+
+
+module.exports = result;
+
+},{}],10:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 
@@ -1261,7 +1462,7 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inh":11}],11:[function(require,module,exports){
+},{"inh":13}],13:[function(require,module,exports){
 "use strict";
 var inherits;
 
