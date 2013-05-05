@@ -25,71 +25,7 @@ module.exports = {
 	Socket: Socket
 };
 
-},{"./errors":3,"./http":4,"./http_request":5,"./jsonp_request":6,"./socket":7}],5:[function(require,module,exports){
-"use strict";
-var NetworkError = require('./errors').NetworkError;
-
-
-var HttpRequest = function (opt_options) {
-	this.isAborted = false;
-	this.xhr = null;
-	this.cb = null;
-};
-
-HttpRequest.prototype.send = function (req, cb) {
-	this.cb = cb;
-	var xhr = new XMLHttpRequest();
-	this.xhr = xhr;
-	var self = this;
-	xhr.onreadystatechange = function() {
-		if(xhr.readyState == 4) {
-			xhr.onreadystatechange = null;
-			if (!self.isAborted) {
-				self.handleResult();
-			}
-		}
-	};
-	xhr.open(req.method, req.url);
-	for (var k in req.headers) {
-		xhr.setRequestHeader(k, req.headers[k]);
-	}
-	xhr.send(req.body);
-};
-
-HttpRequest.prototype.abort = function () {
-	this.isAborted = true;
-	this.xhr.onreadystatechange = null;
-	this.xhr.abort();
-};
-
-HttpRequest.prototype.handleResult = function () {
-	var xhr = this.xhr;
-	if (!xhr.status) {
-		this.cb(new NetworkError());
-	}
-	else {
-		this.cb(null, {
-			status: xhr.status,
-			headers: {
-				get: function (k) {
-					return xhr.getResponseHeader(k);
-				}
-			},
-			body: xhr.responseText
-		});
-	}
-};
-
-HttpRequest.send = function (req, options, cb) {
-	var instance = new HttpRequest(options);
-	instance.send(req, cb);
-	return instance;
-};
-
-
-module.exports = HttpRequest;
-
-},{"./errors":3}],4:[function(require,module,exports){
+},{"./http":3,"./errors":4,"./http_request":5,"./jsonp_request":6,"./socket":7}],3:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
 var HttpRequest = require('./http_request');
@@ -181,7 +117,163 @@ Http.prototype.extractError = function (result) {
 
 module.exports = Http;
 
-},{"../node_client/http_adapter":8,"./http_request":5,"./jsonp_request":6,"./errors":3}],7:[function(require,module,exports){
+},{"../node_client/http_adapter":8,"./http_request":5,"./jsonp_request":6,"./errors":4}],6:[function(require,module,exports){
+"use strict";
+var NetworkError = require('./errors').NetworkError;
+
+
+var JsonpRequest = function (opt_options) {
+	var options = opt_options || {};
+	this.callbackUrlKey = options.callbackUrlKey || this.defaultCallbackUrlKey;
+
+	this.callbacks = this.getCallbacks();
+
+	this.cb = null;
+	this.scriptEl = null;
+	this.callbackId = null;
+};
+
+JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
+JsonpRequest.prototype.defaultCallbackUrlKey = 'callback';
+
+JsonpRequest.prototype.getCallbacks = function () {
+	if (JsonpRequest.callbacks == null) {
+		var parts = this.callbacksGlobalPath.split('.');
+		var curr = window;
+		for (var i = 0; i < parts.length; i++) {
+			var part = parts[i];
+			var next = curr[part] || {};
+			curr[part] = next;
+			curr = next;
+		}
+		JsonpRequest.callbacks = curr;
+	}
+	return JsonpRequest.callbacks;
+};
+
+JsonpRequest.prototype.send = function (url, cb) {
+	this.cb = cb;
+	this.initCallback();
+	url = this.addCallbackToUrl(url);
+	this.injectScript(url);
+};
+
+JsonpRequest.prototype.initCallback = function () {
+	var self = this;
+	this.callbackId = this.createCallbackId();
+	this.callbacks[this.callbackId] = function (result) {
+		if (!self.isAborted) {
+			self.cleanup();
+			self.handleResult(result);
+		}
+	};
+};
+
+JsonpRequest.prototype.createCallbackId = function () {
+	var base = 'cb' + (new Date().getTime());
+	var i = 0;
+	var result = base;
+	while (result in this.callbacks) {
+		result = base + '_' + (i++);
+	}
+	return result;
+};
+
+JsonpRequest.prototype.addCallbackToUrl = function (url) {
+	var pos = url.indexOf('?');
+	var result;
+	if (pos < 0) {
+		result = [
+			url, '?',
+			this.callbackUrlKey, '=', this.createCallbackName()
+		].join('');
+	}
+	else {
+		result = [
+			url.substr(0, pos + 1),
+			this.callbackUrlKey, '=', this.createCallbackName(),
+			'&', url.substr(pos + 1)
+		].join('');
+	}
+	return result;
+};
+
+JsonpRequest.prototype.createCallbackName = function () {
+	return [this.callbacksGlobalPath, '.', this.callbackId].join('');
+};
+
+JsonpRequest.prototype.createScript = function () {
+	var el = document.createElement('script');
+	el.async = true;
+	var self = this;
+	el.onerror = function (ev) {
+		self.handleScriptErrorEvent(ev);
+	};
+	return el;
+};
+
+JsonpRequest.prototype.injectScript = function (url) {
+	var scriptEl = this.createScript();
+	this.scriptEl = scriptEl;
+
+	var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
+	var firstChild = head.firstChild;
+	if (firstChild) {
+		head.insertBefore(scriptEl, head.firstChild);
+	}
+	else {
+		head.appendChild(scriptEl);
+	}
+
+	scriptEl.src = url;
+};
+
+JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
+	if (!this.isAborted) {
+		this.cleanup();
+		this.cb(new NetworkError());
+	}
+};
+
+JsonpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.cleanup();
+};
+
+JsonpRequest.prototype.cleanup = function () {
+	this.removeCallback();
+	this.removeScripEl();
+};
+
+JsonpRequest.prototype.removeCallback = function () {
+	delete this.callbacks[this.callbackId];
+};
+
+JsonpRequest.prototype.removeScripEl = function () {
+	var scriptEl = this.scriptEl;
+	if (scriptEl != null && scriptEl.parentNode) {
+		scriptEl.parentNode.removeChild(scriptEl);
+		this.scriptEl = null;
+	}
+};
+
+JsonpRequest.prototype.handleResult = function (result) {
+	var headers = result.headers || {};
+	result.headers = headers;
+	result.status = headers.status;
+	this.cb(null, result);
+};
+
+JsonpRequest.send = function (url, options, cb) {
+	var instance = new JsonpRequest(options);
+	instance.send(url, cb);
+	return instance;
+};
+
+
+module.exports = JsonpRequest;
+
+},{"./errors":4}],7:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 
@@ -439,163 +531,71 @@ Socket.prototype.extractError = function (result) {
 
 module.exports = Socket;
 
-},{"./errors":3}],6:[function(require,module,exports){
+},{"./errors":4}],5:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
 
-var JsonpRequest = function (opt_options) {
-	var options = opt_options || {};
-	this.callbackUrlKey = options.callbackUrlKey || this.defaultCallbackUrlKey;
-
-	this.callbacks = this.getCallbacks();
-
+var HttpRequest = function (opt_options) {
+	this.isAborted = false;
+	this.xhr = null;
 	this.cb = null;
-	this.scriptEl = null;
-	this.callbackId = null;
 };
 
-JsonpRequest.prototype.callbacksGlobalPath = 'apis.jsonp.callbacks';
-JsonpRequest.prototype.defaultCallbackUrlKey = 'callback';
-
-JsonpRequest.prototype.getCallbacks = function () {
-	if (JsonpRequest.callbacks == null) {
-		var parts = this.callbacksGlobalPath.split('.');
-		var curr = window;
-		for (var i = 0; i < parts.length; i++) {
-			var part = parts[i];
-			var next = curr[part] || {};
-			curr[part] = next;
-			curr = next;
-		}
-		JsonpRequest.callbacks = curr;
-	}
-	return JsonpRequest.callbacks;
-};
-
-JsonpRequest.prototype.send = function (url, cb) {
+HttpRequest.prototype.send = function (req, cb) {
 	this.cb = cb;
-	this.initCallback();
-	url = this.addCallbackToUrl(url);
-	this.injectScript(url);
-};
-
-JsonpRequest.prototype.initCallback = function () {
+	var xhr = new XMLHttpRequest();
+	this.xhr = xhr;
 	var self = this;
-	this.callbackId = this.createCallbackId();
-	this.callbacks[this.callbackId] = function (result) {
-		if (!self.isAborted) {
-			self.cleanup();
-			self.handleResult(result);
+	xhr.onreadystatechange = function() {
+		if(xhr.readyState == 4) {
+			xhr.onreadystatechange = null;
+			if (!self.isAborted) {
+				self.handleResult();
+			}
 		}
 	};
-};
-
-JsonpRequest.prototype.createCallbackId = function () {
-	var base = 'cb' + (new Date().getTime());
-	var i = 0;
-	var result = base;
-	while (result in this.callbacks) {
-		result = base + '_' + (i++);
+	xhr.open(req.method, req.url);
+	for (var k in req.headers) {
+		xhr.setRequestHeader(k, req.headers[k]);
 	}
-	return result;
+	xhr.send(req.body);
 };
 
-JsonpRequest.prototype.addCallbackToUrl = function (url) {
-	var pos = url.indexOf('?');
-	var result;
-	if (pos < 0) {
-		result = [
-			url, '?',
-			this.callbackUrlKey, '=', this.createCallbackName()
-		].join('');
-	}
-	else {
-		result = [
-			url.substr(0, pos + 1),
-			this.callbackUrlKey, '=', this.createCallbackName(),
-			'&', url.substr(pos + 1)
-		].join('');
-	}
-	return result;
+HttpRequest.prototype.abort = function () {
+	this.isAborted = true;
+	this.xhr.onreadystatechange = null;
+	this.xhr.abort();
 };
 
-JsonpRequest.prototype.createCallbackName = function () {
-	return [this.callbacksGlobalPath, '.', this.callbackId].join('');
-};
-
-JsonpRequest.prototype.createScript = function () {
-	var el = document.createElement('script');
-	el.async = true;
-	var self = this;
-	el.onerror = function (ev) {
-		self.handleScriptErrorEvent(ev);
-	};
-	return el;
-};
-
-JsonpRequest.prototype.injectScript = function (url) {
-	var scriptEl = this.createScript();
-	this.scriptEl = scriptEl;
-
-	var head = document.head || document.getElementsByTagName('head')[0] || document.documentElement;
-	var firstChild = head.firstChild;
-	if (firstChild) {
-		head.insertBefore(scriptEl, head.firstChild);
-	}
-	else {
-		head.appendChild(scriptEl);
-	}
-
-	scriptEl.src = url;
-};
-
-JsonpRequest.prototype.handleScriptErrorEvent = function (ev) {
-	if (!this.isAborted) {
-		this.cleanup();
+HttpRequest.prototype.handleResult = function () {
+	var xhr = this.xhr;
+	if (!xhr.status) {
 		this.cb(new NetworkError());
 	}
-};
-
-JsonpRequest.prototype.abort = function () {
-	this.isAborted = true;
-	this.cleanup();
-};
-
-JsonpRequest.prototype.cleanup = function () {
-	this.removeCallback();
-	this.removeScripEl();
-};
-
-JsonpRequest.prototype.removeCallback = function () {
-	delete this.callbacks[this.callbackId];
-};
-
-JsonpRequest.prototype.removeScripEl = function () {
-	var scriptEl = this.scriptEl;
-	if (scriptEl != null && scriptEl.parentNode) {
-		scriptEl.parentNode.removeChild(scriptEl);
-		this.scriptEl = null;
+	else {
+		this.cb(null, {
+			status: xhr.status,
+			headers: {
+				get: function (k) {
+					return xhr.getResponseHeader(k);
+				}
+			},
+			body: xhr.responseText
+		});
 	}
 };
 
-JsonpRequest.prototype.handleResult = function (result) {
-	var headers = result.headers || {};
-	result.headers = headers;
-	result.status = headers.status;
-	this.cb(null, result);
-};
-
-JsonpRequest.send = function (url, options, cb) {
-	var instance = new JsonpRequest(options);
-	instance.send(url, cb);
+HttpRequest.send = function (req, options, cb) {
+	var instance = new HttpRequest(options);
+	instance.send(req, cb);
 	return instance;
 };
 
 
-module.exports = JsonpRequest;
+module.exports = HttpRequest;
 
-},{"./errors":3}],3:[function(require,module,exports){
+},{"./errors":4}],4:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 var ErrorBase = require('nerr/lib/error_base');
@@ -921,7 +921,104 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":11}],11:[function(require,module,exports){
+},{"ops":11}],9:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+
+
+var ErrorBase = function () {
+	Error.call(this);
+	this.captureStackTrace();
+};
+inherits(ErrorBase, Error);
+
+ErrorBase.prototype.name = 'ErrorBase';
+
+ErrorBase.prototype.captureStackTrace = function () {
+	if (Error.captureStackTrace) {
+		Error.captureStackTrace(this, this.constructor);
+	}
+	else {
+		var stackKeeper = new Error();
+		var self = this;
+		stackKeeper.toString = function () { return self.toString(); };
+		var getStackTrace = function () {
+			return stackKeeper.stack;
+		};
+
+		if (Object.defineProperties) {
+			Object.defineProperties({
+				stack: getStackTrace
+			});
+		}
+		else {
+			this.getStackTrace = getStackTrace;
+		}
+	}
+};
+
+ErrorBase.prototype.toString = function () {
+	var result = this.name;
+	var message = this.getMessage();
+	if (message) {
+		result = [result, message].join(': ');
+	}
+	return result;
+};
+
+ErrorBase.prototype.getMessage = function () {
+	return null;
+};
+
+ErrorBase.prototype.getStackTrace = function () {
+	return this.stack;
+};
+
+if (Object.defineProperties) {
+	Object.defineProperties(ErrorBase.prototype, {
+		message: {
+			get: function () {
+				return this.getMessage();
+			}
+		}
+	});
+}
+
+
+module.exports = ErrorBase;
+
+},{"inh":12}],12:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],11:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };
@@ -1051,103 +1148,6 @@ var result = {
 
 
 module.exports = result;
-
-},{}],9:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-
-
-var ErrorBase = function () {
-	Error.call(this);
-	this.captureStackTrace();
-};
-inherits(ErrorBase, Error);
-
-ErrorBase.prototype.name = 'ErrorBase';
-
-ErrorBase.prototype.captureStackTrace = function () {
-	if (Error.captureStackTrace) {
-		Error.captureStackTrace(this, this.constructor);
-	}
-	else {
-		var stackKeeper = new Error();
-		var self = this;
-		stackKeeper.toString = function () { return self.toString(); };
-		var getStackTrace = function () {
-			return stackKeeper.stack;
-		};
-
-		if (Object.defineProperties) {
-			Object.defineProperties({
-				stack: getStackTrace
-			});
-		}
-		else {
-			this.getStackTrace = getStackTrace;
-		}
-	}
-};
-
-ErrorBase.prototype.toString = function () {
-	var result = this.name;
-	var message = this.getMessage();
-	if (message) {
-		result = [result, message].join(': ');
-	}
-	return result;
-};
-
-ErrorBase.prototype.getMessage = function () {
-	return null;
-};
-
-ErrorBase.prototype.getStackTrace = function () {
-	return this.stack;
-};
-
-if (Object.defineProperties) {
-	Object.defineProperties(ErrorBase.prototype, {
-		message: {
-			get: function () {
-				return this.getMessage();
-			}
-		}
-	});
-}
-
-
-module.exports = ErrorBase;
-
-},{"inh":12}],12:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
 
 },{}]},{},[1])
 ;

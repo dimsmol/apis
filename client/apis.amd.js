@@ -112,7 +112,7 @@ Http.prototype.extractError = function (result) {
 
 module.exports = Http;
 
-},{"../node_client/http_adapter":8,"./http_request":5,"./jsonp_request":6,"./errors":3}],5:[function(require,module,exports){
+},{"./http_request":5,"../node_client/http_adapter":8,"./jsonp_request":6,"./errors":3}],5:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 

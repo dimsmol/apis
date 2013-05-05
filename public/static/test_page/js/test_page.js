@@ -25,7 +25,7 @@ TestPage.prototype.createHttp = function () {
 
 TestPage.prototype.createSocket = function () {
 	var result = new apis.Socket(this.requestBaseField.value);
-	result.customWebSocketClass = SockJS;
+	result.setWebSocketClass(SockJS);
 	var self = this;
 	result.onSocketCreated = function (socket) {
 		socket.addEventListener('open', function (ev) {
