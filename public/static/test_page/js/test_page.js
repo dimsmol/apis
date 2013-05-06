@@ -11,6 +11,7 @@ addEventListener('load', function () {
 },{"./test_page":2}],2:[function(require,module,exports){
 "use strict";
 var apis = require('../../client');
+var WebError = require('../../node_client/web_error');
 var SockJS = window.SockJS;
 
 
@@ -286,7 +287,7 @@ TestPage.prototype.showResult = function (result) {
 };
 
 TestPage.prototype.showError = function (err) {
-	if (err instanceof apis.errors.WebError) {
+	if (err instanceof WebError) {
 		var status = err.status;
 		var headers = JSON.stringify(err.response.headers, null, '\t');
 		var body = err.response.data;
@@ -352,7 +353,7 @@ TestPage.prototype.initKeyHandler = function () {
 
 module.exports = TestPage;
 
-},{"../../client":3}],3:[function(require,module,exports){
+},{"../../node_client/web_error":3,"../../client":4}],4:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 var Http = require('./http');
@@ -369,9 +370,10 @@ module.exports = {
 	Socket: Socket
 };
 
-},{"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":7,"./socket":8}],5:[function(require,module,exports){
+},{"./errors":5,"./http":6,"./http_request":7,"./jsonp_request":8,"./socket":9}],6:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
+var WebError = require('./errors').WebError;
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
 var errors = require('./errors');
@@ -429,7 +431,7 @@ Http.prototype.sendJsonp = function (path, method, headers, data, options, cb) {
 	var url = this.adapter.createRequestUrl(this.baseUri, path, method, headers, data, options);
 	var self = this;
 	return JsonpRequest.send(url, options, function (err, result) {
-		self.handleJsonpResult(err, result, options, cb);
+		self.handleResult(err, result, options, cb);
 	});
 };
 
@@ -437,31 +439,26 @@ Http.prototype.handleHttpResult = function (err, httpResult, options, cb) {
 	var result;
 	if (err == null) {
 		result = this.adapter.parseResponseData(httpResult.status, httpResult.headers, httpResult.body, options);
-		err = this.extractError(result);
 	}
-	cb(err, result);
+	this.handleResult(err, result, options, cb);
 };
 
-Http.prototype.handleJsonpResult = function (err, result, options, cb) {
+Http.prototype.handleResult = function (err, result, options, cb) {
 	if (err == null) {
-		err = this.extractError(result);
+		err = WebError.extract(result);
 	}
-	cb(err, result);
-};
-
-Http.prototype.extractError = function (result) {
-	var status = result.status;
-	var err = null;
-	if (status != 200 && status != 204) {
-		err = new errors.WebError(result);
+	if (err != null) {
+		cb(err);
 	}
-	return err;
+	else {
+		cb(err, result);
+	}
 };
 
 
 module.exports = Http;
 
-},{"../node_client/http_adapter":9,"./http_request":6,"./jsonp_request":7,"./errors":4}],6:[function(require,module,exports){
+},{"../node_client/http_adapter":10,"./errors":5,"./http_request":7,"./jsonp_request":8}],7:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -525,7 +522,7 @@ HttpRequest.send = function (req, options, cb) {
 
 module.exports = HttpRequest;
 
-},{"./errors":4}],7:[function(require,module,exports){
+},{"./errors":5}],8:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -681,7 +678,7 @@ JsonpRequest.send = function (url, options, cb) {
 
 module.exports = JsonpRequest;
 
-},{"./errors":4}],8:[function(require,module,exports){
+},{"./errors":5}],9:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
 
@@ -773,7 +770,7 @@ Socket.prototype.handleMessage = function (ev) {
 		if (request) {
 			var cb = request.cb;
 			this.clearRequest(request, requestId);
-			var err = this.extractError(result);
+			var err = errors.WebError.extract(result);
 			if (err != null) {
 				cb(err);
 			}
@@ -927,27 +924,16 @@ Socket.prototype.parseBody = function (body) {
 	return result;
 };
 
-Socket.prototype.extractError = function (result) {
-	var status = result.status;
-	var err = null;
-	if (status != 200 && status != 204) {
-		err = new errors.WebError(result);
-	}
-	return err;
-};
-
 
 module.exports = Socket;
 
-},{"./errors":4}],4:[function(require,module,exports){
+},{"./errors":5}],3:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 var ErrorBase = require('nerr/lib/error_base');
 
 
 var WebError = function (response) {
-	ErrorBase.call(this);
-
 	this.response = response;
 
 	this.status = response.status;
@@ -963,6 +949,55 @@ WebError.prototype.name = 'WebError';
 WebError.prototype.getMessage = function () {
 	return this._message;
 };
+
+WebError.extract = function (result) {
+	var status = result.status;
+	var err = null;
+	if (status != 200 && status != 204) {
+		err = new WebError(result);
+	}
+	return err;
+};
+
+
+module.exports = WebError;
+
+},{"nerr/lib/error_base":11,"inh":12}],12:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],5:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+var WebError = require('../node_client/web_error');
 
 
 var NetworkError = function () {
@@ -1001,38 +1036,73 @@ module.exports = {
 	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"nerr/lib/error_base":10,"inh":11}],11:[function(require,module,exports){
+},{"../node_client/web_error":3,"nerr/lib/error_base":11,"inh":12}],11:[function(require,module,exports){
 "use strict";
-var inherits;
+var inherits = require('inh');
 
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
+
+var ErrorBase = function () {
+	Error.call(this);
+	this.captureStackTrace();
+};
+inherits(ErrorBase, Error);
+
+ErrorBase.prototype.name = 'ErrorBase';
+
+ErrorBase.prototype.captureStackTrace = function () {
+	if (Error.captureStackTrace) {
+		Error.captureStackTrace(this, this.constructor);
+	}
+	else {
+		var stackKeeper = new Error();
+		var self = this;
+		stackKeeper.toString = function () { return self.toString(); };
+		var getStackTrace = function () {
+			return stackKeeper.stack;
+		};
+
+		if (Object.defineProperties) {
+			Object.defineProperties({
+				stack: getStackTrace
+			});
+		}
+		else {
+			this.getStackTrace = getStackTrace;
+		}
+	}
+};
+
+ErrorBase.prototype.toString = function () {
+	var result = this.name;
+	var message = this.getMessage();
+	if (message) {
+		result = [result, message].join(': ');
+	}
+	return result;
+};
+
+ErrorBase.prototype.getMessage = function () {
+	return null;
+};
+
+ErrorBase.prototype.getStackTrace = function () {
+	return this.stack;
+};
+
+if (Object.defineProperties) {
+	Object.defineProperties(ErrorBase.prototype, {
+		message: {
+			get: function () {
+				return this.getMessage();
 			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
+		}
+	});
 }
 
-module.exports = inherits;
 
-},{}],9:[function(require,module,exports){
+module.exports = ErrorBase;
+
+},{"inh":13}],10:[function(require,module,exports){
 "use strict";
 var ops = require('ops');
 
@@ -1082,6 +1152,7 @@ HttpAdapter.prototype.createRequestData = function (base, path, method, headers,
 		urlParts = {
 			body: body
 		};
+		body = null;
 	}
 
 	var url = this.createUrl(base, path, urlParts, options);
@@ -1090,8 +1161,7 @@ HttpAdapter.prototype.createRequestData = function (base, path, method, headers,
 		url: url,
 		method: httpMethod,
 		headers: httpHeaders,
-		body: body,
-		options: options.http
+		body: body
 	};
 };
 
@@ -1265,7 +1335,38 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":12}],12:[function(require,module,exports){
+},{"ops":14}],13:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],14:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };
@@ -1395,103 +1496,6 @@ var result = {
 
 
 module.exports = result;
-
-},{}],10:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-
-
-var ErrorBase = function () {
-	Error.call(this);
-	this.captureStackTrace();
-};
-inherits(ErrorBase, Error);
-
-ErrorBase.prototype.name = 'ErrorBase';
-
-ErrorBase.prototype.captureStackTrace = function () {
-	if (Error.captureStackTrace) {
-		Error.captureStackTrace(this, this.constructor);
-	}
-	else {
-		var stackKeeper = new Error();
-		var self = this;
-		stackKeeper.toString = function () { return self.toString(); };
-		var getStackTrace = function () {
-			return stackKeeper.stack;
-		};
-
-		if (Object.defineProperties) {
-			Object.defineProperties({
-				stack: getStackTrace
-			});
-		}
-		else {
-			this.getStackTrace = getStackTrace;
-		}
-	}
-};
-
-ErrorBase.prototype.toString = function () {
-	var result = this.name;
-	var message = this.getMessage();
-	if (message) {
-		result = [result, message].join(': ');
-	}
-	return result;
-};
-
-ErrorBase.prototype.getMessage = function () {
-	return null;
-};
-
-ErrorBase.prototype.getStackTrace = function () {
-	return this.stack;
-};
-
-if (Object.defineProperties) {
-	Object.defineProperties(ErrorBase.prototype, {
-		message: {
-			get: function () {
-				return this.getMessage();
-			}
-		}
-	});
-}
-
-
-module.exports = ErrorBase;
-
-},{"inh":13}],13:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
 
 },{}]},{},[1])
 ;
