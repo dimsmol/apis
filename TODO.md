@@ -1,22 +1,30 @@
-* deny loading from frame by default
-	* way to allow frames
+* noFrames (true by default for static)
+* sameOrigin
+* https support
+	* requireTls handler
+
+* make event names camelCase ? (check guidelines)
+* make ids camelCase on test page
+
+## misc
 
 * add domain support for socket mechanics
 * add response to socket on critical error if has requestId
 
-* make HttpAdapter transforms work more automatically
-
 * client
 	* bring timeout functionality back to http client
-	* headers can be modified during send() - fix it
+	* headers can be modified during send() - fix it (?)
 	* fix *EventListener issues
-
-* think about combining all apis headers into single http header - be careful, can have single row length issues
-* make event names camelCase ? (check guidelines)
-* make ids camelCase on test page
 
 * make Loader command set easier to extend
 * add ability to run cluster without daemonization
+
+* check content-size header as early as possible (?)
+
+* add ability to specify pre and post handlers for contract
+	* keep in mind nested contracts structure
+	* actively use ctx during resolution
+	* possibly move result functionality somewhere
 
 ## browserify
 
@@ -32,7 +40,6 @@
 
 ## test page
 
-* move testPage to client/
 * ability to copy/save/load requests
 
 ## batch
@@ -42,26 +49,15 @@
 * ability to fetch less data than used in 'apply' (?)
 * optionally fail on error
 
-## misc
+## move to standalone lib
 
-* move logging to standalone lib, leave wrapper here
-	* introduce handlers
-* move cluster to standalone library
-* move daemon to standalone library
+* logging (leave wrapper here)
+* cluster
+* daemon
+
+## logging
 
 * add 'logrotate' command to loader interface (must call 'rotate' on stream-like loggers forcing them to reopen streams)
-* check content-size header as early as possible (?)
-
-* add ability to specify pre and post handlers for contract
-	* keep in mind nested contracts structure
-	* actively use ctx during resolution
-	* possibly move result functionality somewhere
-
-* add fields handler ?
-* add range (skip, limit) handler ?
-* add tls handler
-
-* make standard 'options' handler more informative (provide contract?)
 
 ## stats
 
