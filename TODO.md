@@ -2,6 +2,7 @@
 * sameOrigin
 * https support
 	* requireTls handler
+* secure cookies
 
 * make event names camelCase ? (check guidelines)
 * make ids camelCase on test page
