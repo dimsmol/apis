@@ -7,6 +7,31 @@
 * make event names camelCase ? (check guidelines)
 * make ids camelCase on test page
 
+## apis 0.1
+
+* make every part of functionality independently usable:
+	* loader
+		* with console support
+		* extract runner?
+	* settings
+	* routing
+	* cluster
+	* domain
+	* daemonizer
+	* logging
+	* websockets
+* make following functionality pluggable:
+	* JSONP
+	* batch requests
+	* CORS
+* make handlers express.js compatible
+* extract req/res extensions to stand-alone lib
+* allow to use apis (completely or parts of it):
+	* on top of any connect-like framework
+	* without intermediate framework (on top of node's http/https modules)
+
+Ideally, apis must become a meta-package bringing together functionality described above.
+
 ## misc
 
 * add domain support for socket mechanics

@@ -1,3 +1,30 @@
+## Features
+
+* units-based modular architecture
+* loader
+	* provides multiple running modes
+		* provides app console
+	* brings app parts together automatically
+* flexible settings system
+* advanced routing with contracts/resources
+* ability to start multiple servers
+	* allows to listen multiple ports, support HTTP+HTTPS, IP4+IP6, etc.
+* cluster support
+* domain support
+* integrated daemonization
+* logging
+* multiple transports support:
+	* websockets
+	* JSONP
+	* batch requests
+* CORS-enabled
+* number of useful handlers, including:
+	* authentication
+	* data parsing and validation
+	* response serialization and validation
+	* static files handling
+* client libs for node.js and browser
+
 ## Security Note
 
 All apis resources are by default fully CORS and JSONP available. You must use CSRF protection for all your authenticated requests (even for GET requests) and apis supports such protection by default too. Optionally, you can check Origin of your requests or disable CORS/JSONP functionality (completely or for choosen request handlers).
