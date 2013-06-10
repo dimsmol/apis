@@ -3,6 +3,7 @@
 * https support
 	* requireTls handler
 * secure cookies
+* Strict-Transport-Security header
 
 * make event names camelCase ? (check guidelines)
 * make ids camelCase on test page
