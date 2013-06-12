@@ -1,3 +1,7 @@
+* change client api, make more node-like
+	* extract superclass for autheticators
+	* make canAuthenticate() cleaner
+* error on non-empty expectedIdentity if not authenticated (can get it if auth is optional)
 * noFrames (true by default for static)
 * sameOrigin
 * https support
