@@ -1,29 +1,228 @@
-;(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
+;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 define('apis', [], function () {
 	return require('../../lib/client');
 });
 
-},{"../../lib/client":2}],2:[function(require,module,exports){
+},{"../../lib/client":7}],2:[function(require,module,exports){
 "use strict";
-var errors = require('./errors');
-var Http = require('./http');
-var HttpRequest = require('./http_request');
-var JsonpRequest = require('./jsonp_request');
-var Socket = require('./socket');
+var ops = require('ops');
+
+
+var AppAuthenticator = function (authTransport, options) {
+	this.authTransport = authTransport;
+	this.options = ops.cloneWithDefaults(options, this.getDefaultOptions());
+
+	this.auth = null;
+};
+
+AppAuthenticator.prototype.getDefaultOptions = function () {
+	return {
+		maxAuthAttempts: 10,
+		request: {
+			path: '/service/appToken',
+			method: 'create'
+		}
+	};
+};
+
+AppAuthenticator.prototype.canAuthenticate = function () {
+	return this.isAuthenticated() || this.authTransport.authenticator != null && this.authTransport.authenticator.canAuthenticate();
+};
+
+AppAuthenticator.prototype.isAuthenticated = function () {
+	return this.auth != null && Date.now() < this.auth.issued + this.auth.maxAge;
+};
+
+AppAuthenticator.prototype.authenticate = function (cb) {
+	var request = this.options.request;
+	var self = this;
+	this.authTransport.sendAuthenticated(request.path, request.method, request.headers,
+		request.data, request.options,
+		function (err, result) {
+			if (err != null) {
+				cb(err);
+			}
+			else {
+				self.auth = result.data;
+				cb();
+			}
+		});
+};
+
+AppAuthenticator.prototype.ensureAuthenticated = function (cb) {
+	if (!this.isAuthenticated()) {
+		this.authenticate(cb);
+	}
+	else {
+		cb();
+	}
+};
+
+AppAuthenticator.prototype.sendAuthenticated = function (transport, path, method, headers, data, opt_options, opt_cb) {
+	var self = this;
+	this.callAuthenticated(
+		function (cb) {
+			headers = self.addAuthTokenHeader(headers);
+			transport.send(path, method, headers, data, opt_options, opt_cb);
+		},
+		function (err, result) {
+			self.applyRenewal(err, result);
+			if (opt_cb != null) {
+				opt_cb(err, result);
+			}
+		});
+};
+
+AppAuthenticator.prototype.addAuthTokenHeader = function (headers) {
+	headers = headers || {};
+	headers.auth = headers.auth || {};
+	headers.auth.token = this.auth.token;
+	return headers;
+};
+
+AppAuthenticator.prototype.callAuthenticated = function (f, cb) {
+	this.callAuthenticatedInternal(1, f, cb);
+};
+
+AppAuthenticator.prototype.callAuthenticatedInternal = function (attempt, f, cb) {
+	var self = this;
+	this.ensureAuthenticated(function (err) {
+		if (err != null) {
+			cb(err);
+		}
+		else {
+			f(function (err, result) {
+				if (err != null && err.status == 401 && attempt < self.options.maxAuthAttempts) {
+					self.callAuthenticatedInternal(attempt + 1, f, cb);
+				}
+				else {
+					cb(err, result);
+				}
+			});
+		}
+	});
+};
+
+AppAuthenticator.prototype.applyRenewal = function (err, result) {
+	if (err != null) {
+		result = null;
+		// WebError can contain raw result
+		if (err.result != null && err.status != null && err.name == 'WebError') {
+			result = err.result;
+		}
+	}
+	if (result != null && result.headers != null && result.headers.renewal != null) {
+		this.auth = result.headers.renewal;
+	}
+};
+
+
+module.exports = AppAuthenticator;
+
+},{"ops":14}],3:[function(require,module,exports){
+"use strict";
+var ops = require('ops');
+
+
+var Authenticator = function (opt_auth) {
+	this.auth = opt_auth;
+};
+
+Authenticator.prototype.canAuthenticate = function () {
+	return this.isAuthenticated();
+};
+
+Authenticator.prototype.setAuth = function (auth) {
+	this.auth = auth;
+};
+
+Authenticator.prototype.isAuthenticated = function () {
+	return this.auth != null && Date.now() < this.auth.issued + this.auth.maxAge;
+};
+
+Authenticator.prototype.sendAuthenticated = function (transport, path, method, headers, data, opt_options, opt_cb) {
+	headers = this.addAuthTokenHeader(headers);
+	var self = this;
+	transport.send(path, method, headers, data, opt_options, function (err, result) {
+		self.applyRenewal(err, result);
+		if (opt_cb != null) {
+			opt_cb(err, result);
+		}
+	});
+};
+
+Authenticator.prototype.addAuthTokenHeader = function (headers) {
+	headers = headers || {};
+	headers.auth = headers.auth || {};
+	headers.auth.token = this.auth.token;
+	headers.auth.expected = this.auth.expected;
+	return headers;
+};
+
+Authenticator.prototype.applyRenewal = function (err, result) {
+	if (err != null) {
+		result = null;
+		// WebError can contain raw result
+		if (err.result != null && err.status != null && err.name == 'WebError') {
+			result = err.result;
+		}
+	}
+	if (result != null && result.headers != null && result.headers.renewal != null) {
+		this.auth = result.headers.renewal;
+	}
+};
+
+
+module.exports = Authenticator;
+
+},{"ops":14}],4:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+var WebError = require('../node_client/web_error');
+
+
+var NetworkError = function () {
+	ErrorBase.call(this);
+};
+inherits(NetworkError, ErrorBase);
+
+NetworkError.prototype.name = 'NetworkError';
+
+
+var TimeoutError = function () {
+	ErrorBase.call(this);
+};
+inherits(TimeoutError, ErrorBase);
+
+TimeoutError.prototype.name = 'TimeoutError';
+
+
+var ConnectionCloseError = function (closeEvent) {
+	ErrorBase.call(this);
+	this.closeEvent = closeEvent;
+};
+inherits(ConnectionCloseError, ErrorBase);
+
+ConnectionCloseError.prototype.name = 'ConnectionCloseError';
+
+ConnectionCloseError.prototype.getMessage = function () {
+	return this.closeEvent.reason;
+};
 
 
 module.exports = {
-	errors: errors,
-	Http: Http,
-	HttpRequest: HttpRequest,
-	JsonpRequest: JsonpRequest,
-	Socket: Socket
+	WebError: WebError,
+	NetworkError: NetworkError,
+	TimeoutError: TimeoutError,
+	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"./errors":3,"./http":4,"./http_request":5,"./jsonp_request":6,"./socket":7}],4:[function(require,module,exports){
+},{"../node_client/web_error":11,"inh":12,"nerr/lib/error_base":13}],5:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
 var WebError = require('./errors').WebError;
+var Authenticator = require('./authenticator');
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
 var errors = require('./errors');
@@ -33,10 +232,45 @@ var Http = function (opt_baseUri, opt_options) {
 	this.baseUri = opt_baseUri;
 	this.options = opt_options || {};
 	this.adapter = null;
+	this.authenticator = null;
 };
 
 Http.prototype.setAdapter = function (adapter) {
 	this.adapter = adapter;
+};
+
+Http.prototype.setAuthenticator = function (authenticator) {
+	this.authenticator = authenticator;
+};
+
+Http.prototype.setAuth = function (auth) {
+	this.ensureAuthenticator();
+	this.authenticator.setAuth(auth);
+};
+
+Http.prototype.ensureAuthenticator = function () {
+	if (this.authenticator == null) {
+		this.authenticator = this.createAuthenticator();
+	}
+};
+
+Http.prototype.createAuthenticator = function () {
+	return new Authenticator();
+};
+
+Http.prototype.sendAuthenticated = function (path, method, headers, data, options, cb) {
+	this.ensureAuthenticator();
+	this.authenticator.sendAuthenticated(this, path, method, headers, data, options, cb);
+};
+
+Http.prototype.sendAuthenticatedIfPossible = function (path, method, headers, data, options, cb) {
+	this.ensureAuthenticator();
+	if (this.authenticator.canAuthenticate()) {
+		this.sendAuthenticated(path, method, headers, data, options, cb);
+	}
+	else {
+		this.send(path, method, headers, data, options, cb);
+	}
 };
 
 Http.prototype.send = function (path, method, headers, data, options, cb) {
@@ -108,7 +342,7 @@ Http.prototype.handleResult = function (err, result, options, cb) {
 
 module.exports = Http;
 
-},{"../node_client/http_adapter":8,"./errors":3,"./http_request":5,"./jsonp_request":6}],5:[function(require,module,exports){
+},{"../node_client/http_adapter":10,"./authenticator":3,"./errors":4,"./http_request":6,"./jsonp_request":8}],6:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -172,7 +406,28 @@ HttpRequest.send = function (req, options, cb) {
 
 module.exports = HttpRequest;
 
-},{"./errors":3}],6:[function(require,module,exports){
+},{"./errors":4}],7:[function(require,module,exports){
+"use strict";
+var errors = require('./errors');
+var Authenticator = require('./authenticator');
+var AppAuthenticator = require('./app_authenticator');
+var Http = require('./http');
+var HttpRequest = require('./http_request');
+var JsonpRequest = require('./jsonp_request');
+var Socket = require('./socket');
+
+
+module.exports = {
+	errors: errors,
+	Authenticator: Authenticator,
+	AppAuthenticator: AppAuthenticator,
+	Http: Http,
+	HttpRequest: HttpRequest,
+	JsonpRequest: JsonpRequest,
+	Socket: Socket
+};
+
+},{"./app_authenticator":2,"./authenticator":3,"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":8,"./socket":9}],8:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -328,9 +583,10 @@ JsonpRequest.send = function (url, options, cb) {
 
 module.exports = JsonpRequest;
 
-},{"./errors":3}],7:[function(require,module,exports){
+},{"./errors":4}],9:[function(require,module,exports){
 "use strict";
 var errors = require('./errors');
+var Authenticator = require('./authenticator');
 
 
 var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
@@ -342,6 +598,7 @@ var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
 	this.onMessage = null;
 
 	this.webSocketClass = WebSocket;
+	this.authenticator = null;
 
 	this.socket = null;
 	this.requests = {};
@@ -355,6 +612,25 @@ Socket.prototype.defaultTimeout = null;
 
 Socket.prototype.setWebSocketClass = function (c) {
 	this.webSocketClass = c;
+};
+
+Socket.prototype.setAuthenticator = function (authenticator) {
+	this.authenticator = authenticator;
+};
+
+Socket.prototype.setAuth = function (auth) {
+	this.ensureAuthenticator();
+	this.authenticator.setAuth(auth);
+};
+
+Socket.prototype.ensureAuthenticator = function () {
+	if (this.authenticator == null) {
+		this.authenticator = this.createAuthenticator();
+	}
+};
+
+Socket.prototype.createAuthenticator = function () {
+	return new Authenticator();
 };
 
 Socket.prototype.createAbortFunc = function () {
@@ -455,6 +731,20 @@ Socket.prototype.clearRequest = function (request) {
 Socket.prototype.close = function () {
 	if (this.socket != null) {
 		this.socket.close();
+	}
+};
+
+Socket.prototype.sendAuthenticated = function (path, method, headers, data, opt_options, opt_cb) {
+	this.authenticator.sendAuthenticated(this, path, method, headers, data, opt_options, opt_cb);
+};
+
+Socket.prototype.sendAuthenticatedIfPossible = function (path, method, headers, data, opt_options, opt_cb) {
+	this.ensureAuthenticator();
+	if (this.authenticator.canAuthenticate()) {
+		this.sendAuthenticated(path, method, headers, data, opt_options, opt_cb);
+	}
+	else {
+		this.send(path, method, headers, data, opt_options, opt_cb);
 	}
 };
 
@@ -577,116 +867,7 @@ Socket.prototype.parseBody = function (body) {
 
 module.exports = Socket;
 
-},{"./errors":3}],3:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-var WebError = require('../node_client/web_error');
-
-
-var NetworkError = function () {
-	ErrorBase.call(this);
-};
-inherits(NetworkError, ErrorBase);
-
-NetworkError.prototype.name = 'NetworkError';
-
-
-var TimeoutError = function () {
-	ErrorBase.call(this);
-};
-inherits(TimeoutError, ErrorBase);
-
-TimeoutError.prototype.name = 'TimeoutError';
-
-
-var ConnectionCloseError = function (closeEvent) {
-	ErrorBase.call(this);
-	this.closeEvent = closeEvent;
-};
-inherits(ConnectionCloseError, ErrorBase);
-
-ConnectionCloseError.prototype.name = 'ConnectionCloseError';
-
-ConnectionCloseError.prototype.getMessage = function () {
-	return this.closeEvent.reason;
-};
-
-
-module.exports = {
-	WebError: WebError,
-	NetworkError: NetworkError,
-	TimeoutError: TimeoutError,
-	ConnectionCloseError: ConnectionCloseError
-};
-
-},{"../node_client/web_error":9,"nerr/lib/error_base":10,"inh":11}],11:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
-
-},{}],9:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-
-
-var WebError = function (response) {
-	this.response = response;
-
-	this.status = response.status;
-	var data = response.data || {};
-	this._message = data.message;
-	this.status = response.status;
-	this.code = data.code;
-};
-inherits(WebError, ErrorBase);
-
-WebError.prototype.name = 'WebError';
-
-WebError.prototype.getMessage = function () {
-	return this._message;
-};
-
-WebError.extract = function (result) {
-	var status = result.status;
-	var err = null;
-	if (status != 200 && status != 204) {
-		err = new WebError(result);
-	}
-	return err;
-};
-
-
-module.exports = WebError;
-
-},{"nerr/lib/error_base":10,"inh":11}],8:[function(require,module,exports){
+},{"./authenticator":3,"./errors":4}],10:[function(require,module,exports){
 "use strict";
 var ops = require('ops');
 
@@ -919,7 +1100,141 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":12}],12:[function(require,module,exports){
+},{"ops":14}],11:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+
+
+var WebError = function (result) {
+	ErrorBase.call(this);
+
+	this.result = result;
+
+	this.status = result.status;
+	var data = result.data || {};
+	this._message = data.message;
+	this.status = result.status;
+	this.code = data.code;
+};
+inherits(WebError, ErrorBase);
+
+WebError.prototype.name = 'WebError';
+
+WebError.prototype.getMessage = function () {
+	return this._message;
+};
+
+WebError.extract = function (result) {
+	var status = result.status;
+	var err = null;
+	if (status != 200 && status != 204) {
+		err = new WebError(result);
+	}
+	return err;
+};
+
+
+module.exports = WebError;
+
+},{"inh":12,"nerr/lib/error_base":13}],12:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],13:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+
+
+var ErrorBase = function () {
+	Error.call(this);
+	this.captureStackTrace();
+};
+inherits(ErrorBase, Error);
+
+ErrorBase.prototype.name = 'ErrorBase';
+
+ErrorBase.prototype.captureStackTrace = function () {
+	if (Error.captureStackTrace) {
+		Error.captureStackTrace(this, this.constructor);
+	}
+	else {
+		var stackKeeper = new Error();
+		var self = this;
+		stackKeeper.toString = function () { return self.toString(); };
+		var getStackTrace = function () {
+			return stackKeeper.stack;
+		};
+
+		if (Object.defineProperties) {
+			Object.defineProperties({
+				stack: getStackTrace
+			});
+		}
+		else {
+			this.getStackTrace = getStackTrace;
+		}
+	}
+};
+
+ErrorBase.prototype.toString = function () {
+	var result = this.name;
+	var message = this.getMessage();
+	if (message) {
+		result = [result, message].join(': ');
+	}
+	return result;
+};
+
+ErrorBase.prototype.getMessage = function () {
+	return null;
+};
+
+ErrorBase.prototype.getStackTrace = function () {
+	return this.stack;
+};
+
+if (Object.defineProperties) {
+	Object.defineProperties(ErrorBase.prototype, {
+		message: {
+			get: function () {
+				return this.getMessage();
+			}
+		}
+	});
+}
+
+
+module.exports = ErrorBase;
+
+},{"inh":12}],14:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };
@@ -1049,103 +1364,6 @@ var result = {
 
 
 module.exports = result;
-
-},{}],10:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-
-
-var ErrorBase = function () {
-	Error.call(this);
-	this.captureStackTrace();
-};
-inherits(ErrorBase, Error);
-
-ErrorBase.prototype.name = 'ErrorBase';
-
-ErrorBase.prototype.captureStackTrace = function () {
-	if (Error.captureStackTrace) {
-		Error.captureStackTrace(this, this.constructor);
-	}
-	else {
-		var stackKeeper = new Error();
-		var self = this;
-		stackKeeper.toString = function () { return self.toString(); };
-		var getStackTrace = function () {
-			return stackKeeper.stack;
-		};
-
-		if (Object.defineProperties) {
-			Object.defineProperties({
-				stack: getStackTrace
-			});
-		}
-		else {
-			this.getStackTrace = getStackTrace;
-		}
-	}
-};
-
-ErrorBase.prototype.toString = function () {
-	var result = this.name;
-	var message = this.getMessage();
-	if (message) {
-		result = [result, message].join(': ');
-	}
-	return result;
-};
-
-ErrorBase.prototype.getMessage = function () {
-	return null;
-};
-
-ErrorBase.prototype.getStackTrace = function () {
-	return this.stack;
-};
-
-if (Object.defineProperties) {
-	Object.defineProperties(ErrorBase.prototype, {
-		message: {
-			get: function () {
-				return this.getMessage();
-			}
-		}
-	});
-}
-
-
-module.exports = ErrorBase;
-
-},{"inh":13}],13:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
 
 },{}]},{},[1])
 ;

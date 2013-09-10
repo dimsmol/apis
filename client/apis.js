@@ -1,4 +1,4 @@
-;(function(e,t,n,r){function i(r){if(!n[r]){if(!t[r]){if(e)return e(r);throw new Error("Cannot find module '"+r+"'")}var s=n[r]={exports:{}};t[r][0](function(e){var n=t[r][1][e];return i(n?n:e)},s,s.exports)}return n[r].exports}for(var s=0;s<r.length;s++)i(r[s]);return i})(typeof require!=="undefined"&&require,{1:[function(require,module,exports){
+;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
 var apis = require('../../lib/client');
 
@@ -8,27 +8,226 @@ window.require = function (id) {
 	return id == 'apis' ? apis : parentRequire(id);
 };
 
-},{"../../lib/client":2}],2:[function(require,module,exports){
+},{"../../lib/client":7}],2:[function(require,module,exports){
 "use strict";
-var errors = require('./errors');
-var Http = require('./http');
-var HttpRequest = require('./http_request');
-var JsonpRequest = require('./jsonp_request');
-var Socket = require('./socket');
+var ops = require('ops');
+
+
+var AppAuthenticator = function (authTransport, options) {
+	this.authTransport = authTransport;
+	this.options = ops.cloneWithDefaults(options, this.getDefaultOptions());
+
+	this.auth = null;
+};
+
+AppAuthenticator.prototype.getDefaultOptions = function () {
+	return {
+		maxAuthAttempts: 10,
+		request: {
+			path: '/service/appToken',
+			method: 'create'
+		}
+	};
+};
+
+AppAuthenticator.prototype.canAuthenticate = function () {
+	return this.isAuthenticated() || this.authTransport.authenticator != null && this.authTransport.authenticator.canAuthenticate();
+};
+
+AppAuthenticator.prototype.isAuthenticated = function () {
+	return this.auth != null && Date.now() < this.auth.issued + this.auth.maxAge;
+};
+
+AppAuthenticator.prototype.authenticate = function (cb) {
+	var request = this.options.request;
+	var self = this;
+	this.authTransport.sendAuthenticated(request.path, request.method, request.headers,
+		request.data, request.options,
+		function (err, result) {
+			if (err != null) {
+				cb(err);
+			}
+			else {
+				self.auth = result.data;
+				cb();
+			}
+		});
+};
+
+AppAuthenticator.prototype.ensureAuthenticated = function (cb) {
+	if (!this.isAuthenticated()) {
+		this.authenticate(cb);
+	}
+	else {
+		cb();
+	}
+};
+
+AppAuthenticator.prototype.sendAuthenticated = function (transport, path, method, headers, data, opt_options, opt_cb) {
+	var self = this;
+	this.callAuthenticated(
+		function (cb) {
+			headers = self.addAuthTokenHeader(headers);
+			transport.send(path, method, headers, data, opt_options, opt_cb);
+		},
+		function (err, result) {
+			self.applyRenewal(err, result);
+			if (opt_cb != null) {
+				opt_cb(err, result);
+			}
+		});
+};
+
+AppAuthenticator.prototype.addAuthTokenHeader = function (headers) {
+	headers = headers || {};
+	headers.auth = headers.auth || {};
+	headers.auth.token = this.auth.token;
+	return headers;
+};
+
+AppAuthenticator.prototype.callAuthenticated = function (f, cb) {
+	this.callAuthenticatedInternal(1, f, cb);
+};
+
+AppAuthenticator.prototype.callAuthenticatedInternal = function (attempt, f, cb) {
+	var self = this;
+	this.ensureAuthenticated(function (err) {
+		if (err != null) {
+			cb(err);
+		}
+		else {
+			f(function (err, result) {
+				if (err != null && err.status == 401 && attempt < self.options.maxAuthAttempts) {
+					self.callAuthenticatedInternal(attempt + 1, f, cb);
+				}
+				else {
+					cb(err, result);
+				}
+			});
+		}
+	});
+};
+
+AppAuthenticator.prototype.applyRenewal = function (err, result) {
+	if (err != null) {
+		result = null;
+		// WebError can contain raw result
+		if (err.result != null && err.status != null && err.name == 'WebError') {
+			result = err.result;
+		}
+	}
+	if (result != null && result.headers != null && result.headers.renewal != null) {
+		this.auth = result.headers.renewal;
+	}
+};
+
+
+module.exports = AppAuthenticator;
+
+},{"ops":14}],3:[function(require,module,exports){
+"use strict";
+var ops = require('ops');
+
+
+var Authenticator = function (opt_auth) {
+	this.auth = opt_auth;
+};
+
+Authenticator.prototype.canAuthenticate = function () {
+	return this.isAuthenticated();
+};
+
+Authenticator.prototype.setAuth = function (auth) {
+	this.auth = auth;
+};
+
+Authenticator.prototype.isAuthenticated = function () {
+	return this.auth != null && Date.now() < this.auth.issued + this.auth.maxAge;
+};
+
+Authenticator.prototype.sendAuthenticated = function (transport, path, method, headers, data, opt_options, opt_cb) {
+	headers = this.addAuthTokenHeader(headers);
+	var self = this;
+	transport.send(path, method, headers, data, opt_options, function (err, result) {
+		self.applyRenewal(err, result);
+		if (opt_cb != null) {
+			opt_cb(err, result);
+		}
+	});
+};
+
+Authenticator.prototype.addAuthTokenHeader = function (headers) {
+	headers = headers || {};
+	headers.auth = headers.auth || {};
+	headers.auth.token = this.auth.token;
+	headers.auth.expected = this.auth.expected;
+	return headers;
+};
+
+Authenticator.prototype.applyRenewal = function (err, result) {
+	if (err != null) {
+		result = null;
+		// WebError can contain raw result
+		if (err.result != null && err.status != null && err.name == 'WebError') {
+			result = err.result;
+		}
+	}
+	if (result != null && result.headers != null && result.headers.renewal != null) {
+		this.auth = result.headers.renewal;
+	}
+};
+
+
+module.exports = Authenticator;
+
+},{"ops":14}],4:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+var WebError = require('../node_client/web_error');
+
+
+var NetworkError = function () {
+	ErrorBase.call(this);
+};
+inherits(NetworkError, ErrorBase);
+
+NetworkError.prototype.name = 'NetworkError';
+
+
+var TimeoutError = function () {
+	ErrorBase.call(this);
+};
+inherits(TimeoutError, ErrorBase);
+
+TimeoutError.prototype.name = 'TimeoutError';
+
+
+var ConnectionCloseError = function (closeEvent) {
+	ErrorBase.call(this);
+	this.closeEvent = closeEvent;
+};
+inherits(ConnectionCloseError, ErrorBase);
+
+ConnectionCloseError.prototype.name = 'ConnectionCloseError';
+
+ConnectionCloseError.prototype.getMessage = function () {
+	return this.closeEvent.reason;
+};
 
 
 module.exports = {
-	errors: errors,
-	Http: Http,
-	HttpRequest: HttpRequest,
-	JsonpRequest: JsonpRequest,
-	Socket: Socket
+	WebError: WebError,
+	NetworkError: NetworkError,
+	TimeoutError: TimeoutError,
+	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"./errors":3,"./http":4,"./http_request":5,"./jsonp_request":6,"./socket":7}],4:[function(require,module,exports){
+},{"../node_client/web_error":11,"inh":12,"nerr/lib/error_base":13}],5:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
 var WebError = require('./errors').WebError;
+var Authenticator = require('./authenticator');
 var HttpRequest = require('./http_request');
 var JsonpRequest = require('./jsonp_request');
 var errors = require('./errors');
@@ -38,10 +237,45 @@ var Http = function (opt_baseUri, opt_options) {
 	this.baseUri = opt_baseUri;
 	this.options = opt_options || {};
 	this.adapter = null;
+	this.authenticator = null;
 };
 
 Http.prototype.setAdapter = function (adapter) {
 	this.adapter = adapter;
+};
+
+Http.prototype.setAuthenticator = function (authenticator) {
+	this.authenticator = authenticator;
+};
+
+Http.prototype.setAuth = function (auth) {
+	this.ensureAuthenticator();
+	this.authenticator.setAuth(auth);
+};
+
+Http.prototype.ensureAuthenticator = function () {
+	if (this.authenticator == null) {
+		this.authenticator = this.createAuthenticator();
+	}
+};
+
+Http.prototype.createAuthenticator = function () {
+	return new Authenticator();
+};
+
+Http.prototype.sendAuthenticated = function (path, method, headers, data, options, cb) {
+	this.ensureAuthenticator();
+	this.authenticator.sendAuthenticated(this, path, method, headers, data, options, cb);
+};
+
+Http.prototype.sendAuthenticatedIfPossible = function (path, method, headers, data, options, cb) {
+	this.ensureAuthenticator();
+	if (this.authenticator.canAuthenticate()) {
+		this.sendAuthenticated(path, method, headers, data, options, cb);
+	}
+	else {
+		this.send(path, method, headers, data, options, cb);
+	}
 };
 
 Http.prototype.send = function (path, method, headers, data, options, cb) {
@@ -113,256 +347,7 @@ Http.prototype.handleResult = function (err, result, options, cb) {
 
 module.exports = Http;
 
-},{"../node_client/http_adapter":8,"./errors":3,"./http_request":5,"./jsonp_request":6}],7:[function(require,module,exports){
-"use strict";
-var errors = require('./errors');
-
-
-var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
-	this.basePath = opt_basePath;
-	this.socketUri = opt_socketUri || this.defaultSocketUri;
-	this.protocols = opt_protocols;
-
-	this.onSocketCreated = null;
-	this.onMessage = null;
-
-	this.webSocketClass = WebSocket;
-
-	this.socket = null;
-	this.requests = {};
-
-	this.abortFunc = this.createAbortFunc();
-};
-
-Socket.prototype.defaultSocketUri = '/socket';
-Socket.prototype.headerSeparator = '\n\n';
-Socket.prototype.defaultTimeout = null;
-
-Socket.prototype.setWebSocketClass = function (c) {
-	this.webSocketClass = c;
-};
-
-Socket.prototype.createAbortFunc = function () {
-	var self = this;
-	return function () {
-		self.handleAbort(this);
-	};
-};
-
-Socket.prototype.createSocket = function () {
-	var WebSocketClass = this.webSocketClass;
-	return new WebSocketClass(this.socketUri, this.protocols);
-};
-
-Socket.prototype.connect = function (opt_cb) {
-	if (this.socket != null) {
-		switch (this.socket.readyState) {
-			case 0: // connecting
-				if (opt_cb) {
-					this.socket.addEventListener('open', function () {
-						opt_cb();
-					});
-				}
-				break;
-			case 1: // open
-				if (opt_cb) {
-					opt_cb();
-				}
-				break;
-			default: // closing or closed
-				this.socket = null;
-		}
-	}
-	if (this.socket == null) {
-		this.socket = this.createSocket();
-
-		if (this.onSocketCreated) {
-			this.onSocketCreated(this.socket);
-		}
-
-		if (opt_cb) {
-			this.socket.addEventListener('open', function () {
-				opt_cb();
-			});
-		}
-
-		var self = this;
-		this.socket.addEventListener('message', function (ev) {
-			self.handleMessage(ev);
-		});
-
-		this.socket.addEventListener('close', function (ev) {
-			self.handleClose(ev);
-		});
-	}
-};
-
-Socket.prototype.handleMessage = function (ev) {
-	var result = this.parse(ev.data);
-	var requestId = (result.headers != null ? result.headers.requestId : null);
-	if (requestId != null) {
-		var request = this.requests[requestId];
-		if (request) {
-			var cb = request.cb;
-			this.clearRequest(request, requestId);
-			var err = errors.WebError.extract(result);
-			if (err != null) {
-				cb(err);
-			}
-			else {
-				cb(null, result);
-			}
-		}
-	}
-	else if (this.onMessage != null) {
-		this.onMessage(result);
-	}
-};
-
-Socket.prototype.createRequestId = function () {
-	var base = '' + (new Date().getTime());
-	var i = 0;
-	var result = base;
-	while (result in this.requests) {
-		result = base + '_' + (i++);
-	}
-	return result;
-};
-
-Socket.prototype.clearRequest = function (request) {
-	delete this.requests[request.id];
-	var timeout = request.timeout;
-	if (timeout != null) {
-		clearTimeout(timeout);
-	}
-};
-
-Socket.prototype.close = function () {
-	if (this.socket != null) {
-		this.socket.close();
-	}
-};
-
-Socket.prototype.send = function (path, method, headers, data, opt_options, opt_cb) {
-	var self = this;
-	this.connect(function () {
-		self.sendInternal(path, method, headers, data, opt_options, opt_cb);
-	});
-};
-
-Socket.prototype.sendInternal = function (path, method, headers, data, opt_options, opt_cb) {
-	headers = headers || {};
-
-	headers.method = method;
-	headers.path = this.getEffectivePath(path);
-
-	var request;
-	if (opt_cb) {
-		request = this.createRequest(opt_options, opt_cb);
-		headers.requestId = request.id;
-	}
-
-	var body;
-	if (data === undefined) {
-		body = '';
-	}
-	else {
-		body = JSON.stringify(data);
-	}
-
-	var msg = [
-		JSON.stringify(headers),
-		body
-	].join(this.headerSeparator);
-
-	this.socket.send(msg);
-	return request;
-};
-
-Socket.prototype.getEffectivePath = function (path) {
-	var result = path;
-	if (this.basePath) {
-		result = this.basePath + path;
-	}
-	return result;
-};
-
-Socket.prototype.createRequest = function (options, cb) {
-	var requestId = this.createRequestId();
-	var request = {
-		id: requestId,
-		cb: cb,
-		options: options,
-		abort: this.abortFunc
-	};
-	request.timeout = this.createTimeout(request);
-	this.requests[requestId] = request;
-	return request;
-};
-
-Socket.prototype.createTimeout = function (request) {
-	var options = request.options;
-	var result = null;
-	var timeout = (options != null && options.timeout != null ? options.timeout : this.defaultTimeout);
-	if (timeout != null) {
-		var self = this;
-		result = setTimeout(function () {
-			self.handleTimeout(request);
-		}, timeout);
-	}
-	return result;
-};
-
-Socket.prototype.handleTimeout = function (request) {
-	var cb = request.cb;
-	this.clearRequest(request);
-	cb(new errors.TimeoutError());
-};
-
-Socket.prototype.handleAbort = function (request) {
-	this.clearRequest(request);
-};
-
-Socket.prototype.handleClose = function (ev) {
-	for (var k in this.requests) {
-		var request = this.requests[k];
-		var cb = request.cb;
-		this.clearRequest(request);
-		cb(new errors.ConnectionCloseError(ev));
-	}
-};
-
-Socket.prototype.parse = function (message) {
-	var sepPos = message.indexOf(this.headerSeparator);
-	var headersStr = message.substring(0, sepPos);
-	var body = message.substring(sepPos + this.headerSeparator.length);
-
-	var headers = JSON.parse(headersStr);
-
-	var result = {
-		headers: headers,
-		data: this.parseBody(body)
-	};
-
-	if (headers.status != null) {
-		result.status = headers.status;
-	}
-
-	return result;
-};
-
-Socket.prototype.parseBody = function (body) {
-	var result;
-	if (body) {
-		result = JSON.parse(body);
-	}
-	return result;
-};
-
-
-module.exports = Socket;
-
-},{"./errors":3}],5:[function(require,module,exports){
+},{"../node_client/http_adapter":10,"./authenticator":3,"./errors":4,"./http_request":6,"./jsonp_request":8}],6:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -426,7 +411,28 @@ HttpRequest.send = function (req, options, cb) {
 
 module.exports = HttpRequest;
 
-},{"./errors":3}],6:[function(require,module,exports){
+},{"./errors":4}],7:[function(require,module,exports){
+"use strict";
+var errors = require('./errors');
+var Authenticator = require('./authenticator');
+var AppAuthenticator = require('./app_authenticator');
+var Http = require('./http');
+var HttpRequest = require('./http_request');
+var JsonpRequest = require('./jsonp_request');
+var Socket = require('./socket');
+
+
+module.exports = {
+	errors: errors,
+	Authenticator: Authenticator,
+	AppAuthenticator: AppAuthenticator,
+	Http: Http,
+	HttpRequest: HttpRequest,
+	JsonpRequest: JsonpRequest,
+	Socket: Socket
+};
+
+},{"./app_authenticator":2,"./authenticator":3,"./errors":4,"./http":5,"./http_request":6,"./jsonp_request":8,"./socket":9}],8:[function(require,module,exports){
 "use strict";
 var NetworkError = require('./errors').NetworkError;
 
@@ -582,116 +588,291 @@ JsonpRequest.send = function (url, options, cb) {
 
 module.exports = JsonpRequest;
 
-},{"./errors":3}],3:[function(require,module,exports){
+},{"./errors":4}],9:[function(require,module,exports){
 "use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-var WebError = require('../node_client/web_error');
+var errors = require('./errors');
+var Authenticator = require('./authenticator');
 
 
-var NetworkError = function () {
-	ErrorBase.call(this);
-};
-inherits(NetworkError, ErrorBase);
+var Socket = function (opt_basePath, opt_socketUri, opt_protocols) {
+	this.basePath = opt_basePath;
+	this.socketUri = opt_socketUri || this.defaultSocketUri;
+	this.protocols = opt_protocols;
 
-NetworkError.prototype.name = 'NetworkError';
+	this.onSocketCreated = null;
+	this.onMessage = null;
 
+	this.webSocketClass = WebSocket;
+	this.authenticator = null;
 
-var TimeoutError = function () {
-	ErrorBase.call(this);
-};
-inherits(TimeoutError, ErrorBase);
+	this.socket = null;
+	this.requests = {};
 
-TimeoutError.prototype.name = 'TimeoutError';
-
-
-var ConnectionCloseError = function (closeEvent) {
-	ErrorBase.call(this);
-	this.closeEvent = closeEvent;
-};
-inherits(ConnectionCloseError, ErrorBase);
-
-ConnectionCloseError.prototype.name = 'ConnectionCloseError';
-
-ConnectionCloseError.prototype.getMessage = function () {
-	return this.closeEvent.reason;
+	this.abortFunc = this.createAbortFunc();
 };
 
+Socket.prototype.defaultSocketUri = '/socket';
+Socket.prototype.headerSeparator = '\n\n';
+Socket.prototype.defaultTimeout = null;
 
-module.exports = {
-	WebError: WebError,
-	NetworkError: NetworkError,
-	TimeoutError: TimeoutError,
-	ConnectionCloseError: ConnectionCloseError
+Socket.prototype.setWebSocketClass = function (c) {
+	this.webSocketClass = c;
 };
 
-},{"../node_client/web_error":9,"nerr/lib/error_base":10,"inh":11}],9:[function(require,module,exports){
-"use strict";
-var inherits = require('inh');
-var ErrorBase = require('nerr/lib/error_base');
-
-
-var WebError = function (response) {
-	this.response = response;
-
-	this.status = response.status;
-	var data = response.data || {};
-	this._message = data.message;
-	this.status = response.status;
-	this.code = data.code;
-};
-inherits(WebError, ErrorBase);
-
-WebError.prototype.name = 'WebError';
-
-WebError.prototype.getMessage = function () {
-	return this._message;
+Socket.prototype.setAuthenticator = function (authenticator) {
+	this.authenticator = authenticator;
 };
 
-WebError.extract = function (result) {
-	var status = result.status;
-	var err = null;
-	if (status != 200 && status != 204) {
-		err = new WebError(result);
+Socket.prototype.setAuth = function (auth) {
+	this.ensureAuthenticator();
+	this.authenticator.setAuth(auth);
+};
+
+Socket.prototype.ensureAuthenticator = function () {
+	if (this.authenticator == null) {
+		this.authenticator = this.createAuthenticator();
 	}
-	return err;
+};
+
+Socket.prototype.createAuthenticator = function () {
+	return new Authenticator();
+};
+
+Socket.prototype.createAbortFunc = function () {
+	var self = this;
+	return function () {
+		self.handleAbort(this);
+	};
+};
+
+Socket.prototype.createSocket = function () {
+	var WebSocketClass = this.webSocketClass;
+	return new WebSocketClass(this.socketUri, this.protocols);
+};
+
+Socket.prototype.connect = function (opt_cb) {
+	if (this.socket != null) {
+		switch (this.socket.readyState) {
+			case 0: // connecting
+				if (opt_cb) {
+					this.socket.addEventListener('open', function () {
+						opt_cb();
+					});
+				}
+				break;
+			case 1: // open
+				if (opt_cb) {
+					opt_cb();
+				}
+				break;
+			default: // closing or closed
+				this.socket = null;
+		}
+	}
+	if (this.socket == null) {
+		this.socket = this.createSocket();
+
+		if (this.onSocketCreated) {
+			this.onSocketCreated(this.socket);
+		}
+
+		if (opt_cb) {
+			this.socket.addEventListener('open', function () {
+				opt_cb();
+			});
+		}
+
+		var self = this;
+		this.socket.addEventListener('message', function (ev) {
+			self.handleMessage(ev);
+		});
+
+		this.socket.addEventListener('close', function (ev) {
+			self.handleClose(ev);
+		});
+	}
+};
+
+Socket.prototype.handleMessage = function (ev) {
+	var result = this.parse(ev.data);
+	var requestId = (result.headers != null ? result.headers.requestId : null);
+	if (requestId != null) {
+		var request = this.requests[requestId];
+		if (request) {
+			var cb = request.cb;
+			this.clearRequest(request, requestId);
+			var err = errors.WebError.extract(result);
+			if (err != null) {
+				cb(err);
+			}
+			else {
+				cb(null, result);
+			}
+		}
+	}
+	else if (this.onMessage != null) {
+		this.onMessage(result);
+	}
+};
+
+Socket.prototype.createRequestId = function () {
+	var base = '' + (new Date().getTime());
+	var i = 0;
+	var result = base;
+	while (result in this.requests) {
+		result = base + '_' + (i++);
+	}
+	return result;
+};
+
+Socket.prototype.clearRequest = function (request) {
+	delete this.requests[request.id];
+	var timeout = request.timeout;
+	if (timeout != null) {
+		clearTimeout(timeout);
+	}
+};
+
+Socket.prototype.close = function () {
+	if (this.socket != null) {
+		this.socket.close();
+	}
+};
+
+Socket.prototype.sendAuthenticated = function (path, method, headers, data, opt_options, opt_cb) {
+	this.authenticator.sendAuthenticated(this, path, method, headers, data, opt_options, opt_cb);
+};
+
+Socket.prototype.sendAuthenticatedIfPossible = function (path, method, headers, data, opt_options, opt_cb) {
+	this.ensureAuthenticator();
+	if (this.authenticator.canAuthenticate()) {
+		this.sendAuthenticated(path, method, headers, data, opt_options, opt_cb);
+	}
+	else {
+		this.send(path, method, headers, data, opt_options, opt_cb);
+	}
+};
+
+Socket.prototype.send = function (path, method, headers, data, opt_options, opt_cb) {
+	var self = this;
+	this.connect(function () {
+		self.sendInternal(path, method, headers, data, opt_options, opt_cb);
+	});
+};
+
+Socket.prototype.sendInternal = function (path, method, headers, data, opt_options, opt_cb) {
+	headers = headers || {};
+
+	headers.method = method;
+	headers.path = this.getEffectivePath(path);
+
+	var request;
+	if (opt_cb) {
+		request = this.createRequest(opt_options, opt_cb);
+		headers.requestId = request.id;
+	}
+
+	var body;
+	if (data === undefined) {
+		body = '';
+	}
+	else {
+		body = JSON.stringify(data);
+	}
+
+	var msg = [
+		JSON.stringify(headers),
+		body
+	].join(this.headerSeparator);
+
+	this.socket.send(msg);
+	return request;
+};
+
+Socket.prototype.getEffectivePath = function (path) {
+	var result = path;
+	if (this.basePath) {
+		result = this.basePath + path;
+	}
+	return result;
+};
+
+Socket.prototype.createRequest = function (options, cb) {
+	var requestId = this.createRequestId();
+	var request = {
+		id: requestId,
+		cb: cb,
+		options: options,
+		abort: this.abortFunc
+	};
+	request.timeout = this.createTimeout(request);
+	this.requests[requestId] = request;
+	return request;
+};
+
+Socket.prototype.createTimeout = function (request) {
+	var options = request.options;
+	var result = null;
+	var timeout = (options != null && options.timeout != null ? options.timeout : this.defaultTimeout);
+	if (timeout != null) {
+		var self = this;
+		result = setTimeout(function () {
+			self.handleTimeout(request);
+		}, timeout);
+	}
+	return result;
+};
+
+Socket.prototype.handleTimeout = function (request) {
+	var cb = request.cb;
+	this.clearRequest(request);
+	cb(new errors.TimeoutError());
+};
+
+Socket.prototype.handleAbort = function (request) {
+	this.clearRequest(request);
+};
+
+Socket.prototype.handleClose = function (ev) {
+	for (var k in this.requests) {
+		var request = this.requests[k];
+		var cb = request.cb;
+		this.clearRequest(request);
+		cb(new errors.ConnectionCloseError(ev));
+	}
+};
+
+Socket.prototype.parse = function (message) {
+	var sepPos = message.indexOf(this.headerSeparator);
+	var headersStr = message.substring(0, sepPos);
+	var body = message.substring(sepPos + this.headerSeparator.length);
+
+	var headers = JSON.parse(headersStr);
+
+	var result = {
+		headers: headers,
+		data: this.parseBody(body)
+	};
+
+	if (headers.status != null) {
+		result.status = headers.status;
+	}
+
+	return result;
+};
+
+Socket.prototype.parseBody = function (body) {
+	var result;
+	if (body) {
+		result = JSON.parse(body);
+	}
+	return result;
 };
 
 
-module.exports = WebError;
+module.exports = Socket;
 
-},{"nerr/lib/error_base":10,"inh":11}],11:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
-
-},{}],8:[function(require,module,exports){
+},{"./authenticator":3,"./errors":4}],10:[function(require,module,exports){
 "use strict";
 var ops = require('ops');
 
@@ -924,7 +1105,75 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":12}],10:[function(require,module,exports){
+},{"ops":14}],11:[function(require,module,exports){
+"use strict";
+var inherits = require('inh');
+var ErrorBase = require('nerr/lib/error_base');
+
+
+var WebError = function (result) {
+	ErrorBase.call(this);
+
+	this.result = result;
+
+	this.status = result.status;
+	var data = result.data || {};
+	this._message = data.message;
+	this.status = result.status;
+	this.code = data.code;
+};
+inherits(WebError, ErrorBase);
+
+WebError.prototype.name = 'WebError';
+
+WebError.prototype.getMessage = function () {
+	return this._message;
+};
+
+WebError.extract = function (result) {
+	var status = result.status;
+	var err = null;
+	if (status != 200 && status != 204) {
+		err = new WebError(result);
+	}
+	return err;
+};
+
+
+module.exports = WebError;
+
+},{"inh":12,"nerr/lib/error_base":13}],12:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],13:[function(require,module,exports){
 "use strict";
 var inherits = require('inh');
 
@@ -990,38 +1239,7 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inh":13}],13:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
-
-},{}],12:[function(require,module,exports){
+},{"inh":12}],14:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };
