@@ -114,7 +114,7 @@ AppAuthenticator.prototype.applyRenewal = function (err, result) {
 
 module.exports = AppAuthenticator;
 
-},{"ops":15}],2:[function(require,module,exports){
+},{"ops":16}],2:[function(require,module,exports){
 "use strict";
 var ops = require('ops');
 
@@ -170,9 +170,9 @@ Authenticator.prototype.applyRenewal = function (err, result) {
 
 module.exports = Authenticator;
 
-},{"ops":15}],3:[function(require,module,exports){
+},{"ops":16}],3:[function(require,module,exports){
 "use strict";
-var inherits = require('inh');
+var inherits = require('inherits');
 var ErrorBase = require('nerr/lib/error_base');
 var WebError = require('../node_client/web_error');
 
@@ -213,7 +213,7 @@ module.exports = {
 	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"../node_client/web_error":10,"inh":13,"nerr/lib/error_base":14}],4:[function(require,module,exports){
+},{"../node_client/web_error":10,"inherits":13,"nerr/lib/error_base":14}],4:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
 var WebError = require('./errors').WebError;
@@ -1095,9 +1095,9 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":15}],10:[function(require,module,exports){
+},{"ops":16}],10:[function(require,module,exports){
 "use strict";
-var inherits = require('inh');
+var inherits = require('inherits');
 var ErrorBase = require('nerr/lib/error_base');
 
 
@@ -1132,7 +1132,7 @@ WebError.extract = function (result) {
 
 module.exports = WebError;
 
-},{"inh":13,"nerr/lib/error_base":14}],11:[function(require,module,exports){
+},{"inherits":13,"nerr/lib/error_base":14}],11:[function(require,module,exports){
 "use strict";
 var TestPage = require('./test_page');
 
@@ -1488,35 +1488,29 @@ TestPage.prototype.initKeyHandler = function () {
 module.exports = TestPage;
 
 },{"../../client":6,"../../node_client/web_error":10}],13:[function(require,module,exports){
-"use strict";
-var inherits;
-
 if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
+  // implementation from standard node.js 'util' module
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    ctor.prototype = Object.create(superCtor.prototype, {
+      constructor: {
+        value: ctor,
+        enumerable: false,
+        writable: true,
+        configurable: true
+      }
+    });
+  };
+} else {
+  // old school shim for old browsers
+  module.exports = function inherits(ctor, superCtor) {
+    ctor.super_ = superCtor
+    var TempCtor = function () {}
+    TempCtor.prototype = superCtor.prototype
+    ctor.prototype = new TempCtor()
+    ctor.prototype.constructor = ctor
+  }
 }
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
 
 },{}],14:[function(require,module,exports){
 "use strict";
@@ -1584,7 +1578,38 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inh":13}],15:[function(require,module,exports){
+},{"inh":15}],15:[function(require,module,exports){
+"use strict";
+var inherits;
+
+if (typeof Object.create === 'function') {
+	// implementation from standard node.js 'util' module
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		ctor.prototype = Object.create(superCtor.prototype, {
+			constructor: {
+				value: ctor,
+				enumerable: false,
+				writable: true,
+				configurable: true
+			}
+		});
+	};
+}
+else {
+	// old school shim for old browsers
+	inherits = function(ctor, superCtor) {
+		ctor.super_ = superCtor;
+		var TempCtor = function () {};
+		TempCtor.prototype = superCtor.prototype;
+		ctor.prototype = new TempCtor();
+		ctor.prototype.constructor = ctor;
+	};
+}
+
+module.exports = inherits;
+
+},{}],16:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };

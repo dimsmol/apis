@@ -10,6 +10,7 @@
 	"preferGlobal": false,
 	"private": false,
 	"dependencies": {
+		"inherits": "~2.0.1",
 		"express": "~2.5.11",
 		"hyperquest": "~0.1.5",
 		"ain2": "~1.1.1",
@@ -21,7 +22,6 @@
 		"units": "~0.0.1",
 		"authen": "~0.0.2",
 		"ops": "~0.0.1",
-		"inh": "~0.0.1",
 
 		"trun": "~0.0.1"
 	},
