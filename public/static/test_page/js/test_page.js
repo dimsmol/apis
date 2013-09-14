@@ -1423,8 +1423,8 @@ TestPage.prototype.showResult = function (result) {
 TestPage.prototype.showError = function (err) {
 	if (err instanceof WebError) {
 		var status = err.status;
-		var headers = JSON.stringify(err.response.headers, null, '\t');
-		var body = err.response.data;
+		var headers = JSON.stringify(err.result.headers, null, '\t');
+		var body = err.result.data;
 		try {
 			body = JSON.stringify(body, null, '\t');
 		}
@@ -1514,7 +1514,7 @@ if (typeof Object.create === 'function') {
 
 },{}],14:[function(require,module,exports){
 "use strict";
-var inherits = require('inh');
+var inherits = require('inherits');
 
 
 var ErrorBase = function () {
@@ -1578,37 +1578,8 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inh":15}],15:[function(require,module,exports){
-"use strict";
-var inherits;
-
-if (typeof Object.create === 'function') {
-	// implementation from standard node.js 'util' module
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		ctor.prototype = Object.create(superCtor.prototype, {
-			constructor: {
-				value: ctor,
-				enumerable: false,
-				writable: true,
-				configurable: true
-			}
-		});
-	};
-}
-else {
-	// old school shim for old browsers
-	inherits = function(ctor, superCtor) {
-		ctor.super_ = superCtor;
-		var TempCtor = function () {};
-		TempCtor.prototype = superCtor.prototype;
-		ctor.prototype = new TempCtor();
-		ctor.prototype.constructor = ctor;
-	};
-}
-
-module.exports = inherits;
-
+},{"inherits":15}],15:[function(require,module,exports){
+module.exports=require(13)
 },{}],16:[function(require,module,exports){
 "use strict";
 var Ops = function () {
