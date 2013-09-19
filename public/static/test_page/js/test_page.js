@@ -1,6 +1,8 @@
 ;(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);throw new Error("Cannot find module '"+o+"'")}var f=n[o]={exports:{}};t[o][0].call(f.exports,function(e){var n=t[o][1][e];return s(n?n:e)},f,f.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 "use strict";
+var mt = require('marked_types');
 var ops = require('ops');
+var WebError = require('./errors').WebError;
 
 
 var AppAuthenticator = function (authTransport, options) {
@@ -102,7 +104,7 @@ AppAuthenticator.prototype.applyRenewal = function (err, result) {
 	if (err != null) {
 		result = null;
 		// WebError can contain raw result
-		if (err.result != null && err.status != null && err.name == 'WebError') {
+		if (mt.is(err, WebError) && err.result != null) {
 			result = err.result;
 		}
 	}
@@ -114,9 +116,11 @@ AppAuthenticator.prototype.applyRenewal = function (err, result) {
 
 module.exports = AppAuthenticator;
 
-},{"ops":16}],2:[function(require,module,exports){
+},{"./errors":3,"marked_types":14,"ops":17}],2:[function(require,module,exports){
 "use strict";
+var mt = require('marked_types');
 var ops = require('ops');
+var WebError = require('./errors').WebError;
 
 
 var Authenticator = function (opt_auth) {
@@ -158,7 +162,7 @@ Authenticator.prototype.applyRenewal = function (err, result) {
 	if (err != null) {
 		result = null;
 		// WebError can contain raw result
-		if (err.result != null && err.status != null && err.name == 'WebError') {
+		if (mt.is(err, WebError) && err.result != null) {
 			result = err.result;
 		}
 	}
@@ -170,7 +174,7 @@ Authenticator.prototype.applyRenewal = function (err, result) {
 
 module.exports = Authenticator;
 
-},{"ops":16}],3:[function(require,module,exports){
+},{"./errors":3,"marked_types":14,"ops":17}],3:[function(require,module,exports){
 "use strict";
 var inherits = require('inherits');
 var ErrorBase = require('nerr/lib/error_base');
@@ -213,7 +217,7 @@ module.exports = {
 	ConnectionCloseError: ConnectionCloseError
 };
 
-},{"../node_client/web_error":10,"inherits":13,"nerr/lib/error_base":14}],4:[function(require,module,exports){
+},{"../node_client/web_error":10,"inherits":13,"nerr/lib/error_base":15}],4:[function(require,module,exports){
 "use strict";
 var HttpAdapter = require('../node_client/http_adapter');
 var WebError = require('./errors').WebError;
@@ -1095,9 +1099,10 @@ HttpAdapter.prototype.parseBody = function (body) {
 
 module.exports = HttpAdapter;
 
-},{"ops":16}],10:[function(require,module,exports){
+},{"ops":17}],10:[function(require,module,exports){
 "use strict";
 var inherits = require('inherits');
+var mt = require('marked_types');
 var ErrorBase = require('nerr/lib/error_base');
 
 
@@ -1113,6 +1118,7 @@ var WebError = function (result) {
 	this.code = data.code;
 };
 inherits(WebError, ErrorBase);
+mt.mark(WebError, 'apis:(client):WebError');
 
 WebError.prototype.name = 'WebError';
 
@@ -1132,7 +1138,7 @@ WebError.extract = function (result) {
 
 module.exports = WebError;
 
-},{"inherits":13,"nerr/lib/error_base":14}],11:[function(require,module,exports){
+},{"inherits":13,"marked_types":14,"nerr/lib/error_base":15}],11:[function(require,module,exports){
 "use strict";
 var TestPage = require('./test_page');
 
@@ -1144,6 +1150,7 @@ addEventListener('load', function () {
 
 },{"./test_page":12}],12:[function(require,module,exports){
 "use strict";
+var mt = require('marked_types');
 var apis = require('../../client');
 var WebError = require('../../node_client/web_error');
 var SockJS = window.SockJS;
@@ -1421,7 +1428,7 @@ TestPage.prototype.showResult = function (result) {
 };
 
 TestPage.prototype.showError = function (err) {
-	if (err instanceof WebError) {
+	if (mt.is(err, WebError)) {
 		var status = err.status;
 		var headers = JSON.stringify(err.result.headers, null, '\t');
 		var body = err.result.data;
@@ -1487,7 +1494,7 @@ TestPage.prototype.initKeyHandler = function () {
 
 module.exports = TestPage;
 
-},{"../../client":6,"../../node_client/web_error":10}],13:[function(require,module,exports){
+},{"../../client":6,"../../node_client/web_error":10,"marked_types":14}],13:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1513,6 +1520,56 @@ if (typeof Object.create === 'function') {
 }
 
 },{}],14:[function(require,module,exports){
+"use strict";
+var getTypeMarker = function (type) {
+	var result = null;
+	while (type != null) {
+		if (type.typeMarker_ != null) {
+			result = type.typeMarker_;
+		}
+		type = type.super_;
+	}
+	return result;
+};
+
+var mark = function (type, id) {
+	var existing = getTypeMarker(type);
+
+	var marker = id;
+	if (existing) {
+		marker += [existing, id].join(' ');
+	}
+
+	type.typeMarker_ = marker;
+	type.prototype.typeMarker_ = marker;
+};
+
+var is = function (obj, type) {
+	var result = false;
+	if (obj != null && obj.typeMarker_) {
+		var marker = getTypeMarker(type);
+		if (marker) {
+			if (marker.length == obj.typeMarker_.length) {
+				result = (obj.typeMarker_ == marker);
+			}
+			else {
+				result = (
+					obj.typeMarker_.indexOf(marker) === 0 &&
+					obj.typeMarker_[marker.length] == ' ' &&
+					obj.typeMarker_[marker.length - 1] != '\\'
+				);
+			}
+		}
+	}
+	return result;
+};
+
+module.exports = {
+	mark: mark,
+	is: is
+};
+
+},{}],15:[function(require,module,exports){
 "use strict";
 var inherits = require('inherits');
 
@@ -1578,9 +1635,9 @@ if (Object.defineProperties) {
 
 module.exports = ErrorBase;
 
-},{"inherits":15}],15:[function(require,module,exports){
+},{"inherits":16}],16:[function(require,module,exports){
 module.exports=require(13)
-},{}],16:[function(require,module,exports){
+},{}],17:[function(require,module,exports){
 "use strict";
 var Ops = function () {
 };
