@@ -80,3 +80,7 @@ For both core.settings and core.handler units, if unit cannot be found, apis def
 	* PUT is safe to repeat (example: update something)
 	* POST is not safe to repeat - can create copies (example: create)
 * DELETE is safe to repeat (just ensures that it's deleted)
+
+## License
+
+MIT
